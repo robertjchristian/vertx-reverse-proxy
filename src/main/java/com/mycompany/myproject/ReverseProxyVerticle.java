@@ -28,7 +28,7 @@ import org.vertx.java.platform.Verticle;
  *
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class PingVerticle extends Verticle {
+public class ReverseProxyVerticle extends Verticle {
 
   public void start() {
 
@@ -42,7 +42,7 @@ public class PingVerticle extends Verticle {
       }
     });
 
-    logger.info("PingVerticle started");
+    logger.info("ReverseProxyVerticle started");
 
     logger.info("Config value foo is " + container.config().getString("foo"));
 
