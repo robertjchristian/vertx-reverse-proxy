@@ -30,11 +30,13 @@ import org.vertx.java.platform.Verticle;
  */
 public class ReverseProxyVerticle extends Verticle {
 
+  final private static String VERTICLE_ADDRESS = "1234";
+
   public void start() {
 
     final Logger logger = container.logger();
 
-    vertx.eventBus().registerHandler("ping-address", new Handler<Message<String>>() {
+    vertx.eventBus().registerHandler(VERTICLE_ADDRESS, new Handler<Message<String>>() {
       @Override
       public void handle(Message<String> message) {
         message.reply("pong!");

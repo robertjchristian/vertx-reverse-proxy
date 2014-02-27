@@ -38,10 +38,12 @@ import static org.vertx.testtools.VertxAssert.*;
  */
 public class ModuleIntegrationTest extends TestVerticle {
 
+  final private static String VERTICLE_ADDRESS = "1234";
+
   @Test
   public void testPing() {
     container.logger().info("in testPing()");
-    vertx.eventBus().send("ping-address", "ping!", new Handler<Message<String>>() {
+    vertx.eventBus().send(VERTICLE_ADDRESS, "ping!", new Handler<Message<String>>() {
       @Override
       public void handle(Message<String> reply) {
         assertEquals("pong!", reply.body());
