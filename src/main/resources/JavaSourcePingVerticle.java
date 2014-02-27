@@ -41,7 +41,7 @@ public class JavaSourcePingVerticle extends Verticle {
       }
     });
 
-    container.logger().info("PingVerticle started");
+    container.logger().info("ReverseProxyVerticle started");
 
   }
 }

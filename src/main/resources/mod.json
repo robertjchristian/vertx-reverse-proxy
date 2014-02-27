@@ -1,7 +1,7 @@
 {
 
   // Java verticle
-  "main":"com.mycompany.myproject.PingVerticle",
+  "main":"com.mycompany.myproject.ReverseProyVerticle",
 
   // In this example we also provide various other versions of the main verticle, you can uncomment this and
   // play around:
@@ -27,9 +27,9 @@
 
   // If your module is going to be registered in the Vert.x module registry you will also need the following
   // mandatory fields
-  "description":"Put description of your module here",
+  "description":"Reverse proxy",
   "licenses": ["The Apache Software License Version 2.0"],
-  "author": "Joe Bloggs",
+  "author": "Robert Christian",
 
   // Optional fields
   "developers": ["Other Dev 1", "Other Dev 2"],

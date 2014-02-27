@@ -1,7 +1,6 @@
 package com.mycompany.myproject.test.unit;
 
-import com.mycompany.myproject.PingVerticle;
-import org.junit.Assert;
+import com.mycompany.myproject.ReverseProxyVerticle;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -27,7 +26,7 @@ public class ExampleUnitTest {
 
   @Test
   public void testVerticle() {
-    PingVerticle vert = new PingVerticle();
+    ReverseProxyVerticle vert = new ReverseProxyVerticle();
 
     // Interrogate your classes directly....
 
