@@ -1,12 +1,20 @@
-# Vert.x Gradle Template
+# Vert.x Reverse Proxy
 
-Template project for creating a Vert.x module with a Gradle build.
+To get started, type
 
-Clone this and adapt it to easily develop Vert.x modules using Gradle as your build tool.
+./gradlew clean assemble runMod -d
 
-By default this module contains a simple Java verticle which listens on the event bus and responds to `ping!`
-messages with `pong!`.
+Then in another terminal, test target (8282) and reverse proxy (8080):
 
-This template also shows you how to write tests in Java, Groovy, Ruby and Python
+➜  ~  curl localhost:8282
+foo%
+➜  ~  curl localhost:8080
+foo% 
 
-See the [build script](build.gradle) for the list of useful tasks
+... and logs should indicate the proxy took place:
+
+16:30:16.156 [QUIET] [system.out] Proxying request: /
+16:30:16.157 [QUIET] [system.out] end of the request
+16:30:16.158 [QUIET] [system.out] Target server processing request: /
+16:30:16.159 [QUIET] [system.out] Proxying response: 200
+16:30:16.160 [QUIET] [system.out] Proxying response body:foo
