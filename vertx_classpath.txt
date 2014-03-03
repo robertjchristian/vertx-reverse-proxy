@@ -1,5 +1,5 @@
 src/main/resources
-bin
 out/production/vert-x-reverse-proxy
 out/test/vert-x-reverse-proxy
+bin
 build/deps
