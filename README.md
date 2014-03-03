@@ -1,3 +1,12 @@
+<div>
+
+<a href="https://travis-ci.org/robertjchristian/service-nucleus">
+<img src="https://travis-ci.org/robertjchristian/service-nucleus.png?branch=master" />
+</a>
+
+</div>
+
+
 # Vert.x Reverse Proxy
 
 To get started, type
