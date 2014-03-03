@@ -14,14 +14,25 @@ public class ReverseProxyVerticle extends Verticle {
 
     public void start() {
 
+        // TODO Support rewrite rules within configuration (with host/port)
+
+        // TODO Create IntegrationMock verticle, driven by flag
+        // TODO this verticle should create target servers that
+        // TODO map to corresponding mappings within configuration
+
+        // TODO move hosts, ports, etc to configuration
+
+        // TODO travis.ci
+
         final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(8282);
 
         // proxy server
         vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest req) {
-                System.out.println("Proxying request: " + req.uri());
+                System.out.println("Proxying request: " + req.method() + " " + req.uri());
                 final HttpClientRequest cReq = client.request(req.method(), req.uri(), new Handler<HttpClientResponse>() {
                     public void handle(HttpClientResponse cRes) {
+
                         System.out.println("Proxying response: " + cRes.statusCode());
                         req.response().setStatusCode(cRes.statusCode());
                         req.response().headers().set(cRes.headers());
@@ -62,7 +73,7 @@ public class ReverseProxyVerticle extends Verticle {
                 System.out.println("Target server processing request: " + req.uri());
                 req.response().setStatusCode(200);
                 req.response().setChunked(true);
-                req.response().write("foo");
+                req.response().write("Foo");
                 req.response().end();
             }
         }).listen(8282);
