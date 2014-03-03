@@ -20,71 +20,84 @@ import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.http.HttpClient;
+import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
-import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.testtools.TestVerticle;
-import org.vertx.testtools.VertxAssert;
+import org.vertx.java.core.buffer.Buffer;
 
 import static org.vertx.testtools.VertxAssert.*;
 
 /**
  * Example Java integration test that deploys the module that this project builds.
- *
+ * <p/>
  * Quite often in integration tests you want to deploy the same module for all tests and you don't want tests
  * to start before the module has been deployed.
- *
+ * <p/>
  * This test demonstrates how to do that.
  */
 public class ModuleIntegrationTest extends TestVerticle {
 
-  final private static String VERTICLE_ADDRESS = "1234";
+    @Test
+    public void testTargetServer() {
 
-  @Test
-  public void testPing() {
-    container.logger().info("in testPing()");
-    vertx.eventBus().send(VERTICLE_ADDRESS, "ping!", new Handler<Message<String>>() {
-      @Override
-      public void handle(Message<String> reply) {
-        assertEquals("pong!", reply.body());
+        container.logger().info("Testing target server...");
 
-        /*
-        If we get here, the test is complete
-        You must always call `testComplete()` at the end. Remember that testing is *asynchronous* so
-        we cannot assume the test is complete by the time the test method has finished executing like
-        in standard synchronous tests
-        */
-        testComplete();
-      }
-    });
-  }
+        final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(8282).setConnectTimeout(5);
 
-  @Test
-  public void testSomethingElse() {
-    // Whatever
-    testComplete();
-  }
+        HttpClientRequest request = client.get("/", new Handler<HttpClientResponse>() {
+            public void handle(final HttpClientResponse resp) {
+
+                // WARN:  Body Handler consumes to memory first... so large enough responses
+                // will break this... http://vertx.io/core_manual_java.html
+                resp.bodyHandler(new Handler<Buffer>() {
+                    public void handle(Buffer body) {
+                        // The entire response body has been received
+                        //container.logger().info("The total body received was " + body.length() + " bytes");
+                        container.logger().info("Got a response: " + resp.statusCode() + " " + resp.statusMessage() + " - " + body.toString());
 
 
-  @Override
-  public void start() {
-    // Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
-    initialize();
-    // Deploy the module - the System property `vertx.modulename` will contain the name of the module so you
-    // don't have to hardecode it in your tests
-    container.deployModule(System.getProperty("vertx.modulename"), new AsyncResultHandler<String>() {
-      @Override
-      public void handle(AsyncResult<String> asyncResult) {
-      // Deployment is asynchronous and this this handler will be called when it's complete (or failed)
-      if (asyncResult.failed()) {
-        container.logger().error(asyncResult.cause());
-      }
-      assertTrue(asyncResult.succeeded());
-      assertNotNull("deploymentID should not be null", asyncResult.result());
-      // If deployed correctly then start the tests!
-      startTests();
-      }
-    });
-  }
+                        // close the client
+                        client.close();
+
+                        // tell event bus we are done
+                        testComplete();
+
+                    }
+                });
+
+
+
+            }
+        });
+
+        request.end();
+
+    }
+
+    @Override
+    public void start() {
+
+        // Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
+        initialize();
+
+        // Deploy the module - the System property `vertx.modulename` will contain the name of the module so you
+        // don't have to hardecode it in your tests
+        container.deployModule(System.getProperty("vertx.modulename"), new AsyncResultHandler<String>() {
+            @Override
+            public void handle(AsyncResult<String> asyncResult) {
+
+                // Deployment is asynchronous and this this handler will be called when it's complete (or failed)
+                if (asyncResult.failed()) {
+                    container.logger().error(asyncResult.cause());
+                }
+                assertTrue(asyncResult.succeeded());
+                assertNotNull("deploymentID should not be null", asyncResult.result());
+
+                // If deployed correctly then start the tests!
+                startTests();
+            }
+        });
+    }
 
 }
