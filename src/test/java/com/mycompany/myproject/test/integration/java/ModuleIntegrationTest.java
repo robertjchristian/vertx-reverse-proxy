@@ -38,6 +38,46 @@ import static org.vertx.testtools.VertxAssert.*;
  */
 public class ModuleIntegrationTest extends TestVerticle {
 
+    // TODO pick up config on the fly (changes currently require restart of verticle)
+
+    @Test
+    public void testProxyServer() {
+
+        container.logger().info("Testing proxy server...");
+
+
+        final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(8080).setConnectTimeout(5);
+
+
+            HttpClientRequest request = client.get("/foo/bar", new Handler<HttpClientResponse>() {
+                public void handle(final HttpClientResponse resp) {
+
+                    // WARN:  Body Handler consumes to memory first... so large enough responses
+                    // will break this... http://vertx.io/core_manual_java.html
+                    resp.bodyHandler(new Handler<Buffer>() {
+                        public void handle(Buffer body) {
+
+                            // The entire response body has been received
+                            //container.logger().info("The total body received was " + body.length() + " bytes");
+                            container.logger().info("Got a response: " + resp.statusCode() + " " + resp.statusMessage() + " - " + body.toString());
+
+                            // close the client
+                            client.close();
+
+                            // tell event bus we are done
+                            testComplete();
+
+                        }
+                    });
+
+                }
+            });
+            request.end();
+
+    }
+
+  /*
+
     @Test
     public void testTargetServer() {
 
@@ -74,6 +114,7 @@ public class ModuleIntegrationTest extends TestVerticle {
         request.end();
 
     }
+  */
 
     @Override
     public void start() {

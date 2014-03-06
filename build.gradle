@@ -57,6 +57,9 @@ dependencies {
   provided "com.foo:foo-lib:1.0.1" - if you DON'T want it to be packaged in the module zip
   */
 
+  compile "com.google.code.gson:gson:2.2.4"
+
+
   // If you're creating Groovy compiled verticles you may need the following dependencies
   provided "org.codehaus.groovy:groovy-all:$groovyVersion"
   provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
@@ -82,7 +85,7 @@ def configurePom(def pom) {
     inceptionYear '2014'
     packaging 'jar'
 
-    url 'https://github.com/robertjchristian/vert-x-reverse-proxy'
+    url 'https://github.com/robertjchristian/vertx-reverse-proxy'
 
     developers {
       developer {
@@ -93,7 +96,7 @@ def configurePom(def pom) {
     }
 
     scm {
-      url 'https://github.com/robertjchristian/vert-x-reverse-proxy'
+      url 'https://github.com/robertjchristian/vertx-reverse-proxy'
     }
 
     licenses {

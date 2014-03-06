@@ -1,5 +1,19 @@
-// Example JSON config file
-
 {
-  "foo": "bar"
+    "rewriteRules": {
+        "google": {
+            "protocol": "http",
+            "host": "www.google.com",
+            "port": 80
+        },
+        "bing": {
+            "host": "bing.com"
+        },
+        "yahoo": {
+            "host": "yahoo.com"
+        },
+        "tb": {
+            "host": "www.thomas-bayer.com"
+        }
+
+    }
 }
