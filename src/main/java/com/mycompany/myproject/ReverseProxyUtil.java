@@ -1,46 +1,66 @@
 package com.mycompany.myproject;
 
-import org.vertx.java.core.http.HttpServerRequest;
+import com.google.gson.Gson;
+import com.mycompany.myproject.configuration.Configuration;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+import org.vertx.java.core.MultiMap;
+import org.vertx.java.platform.Container;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * robertjchristian
  */
 public class ReverseProxyUtil {
 
-    // debug
-    public static void printHeaders(HttpServerRequest req) {
-        for (String key : req.headers().names()) {
-            System.out.println(key + " --> " + req.headers().get(key));
-        }
+    public static String printHeaders(MultiMap headers) {
+        return new Gson().toJson(headers);
     }
 
-    // debug
-    public static void printHeaders(HttpServerRequest req, String filter) {
-        for (String key : req.headers().names()) {
+    // TODO want to pick these up dynamically
+    public static Configuration getConfiguration(Container container) {
+        Gson g = new Gson();
+        final String rawConfig = container.config().toString();
+        final Configuration config = g.fromJson(rawConfig, Configuration.class);
+        return config;
+    }
+
+    public static String printHeaders(MultiMap headers, String filter) {
+        java.util.Map<String, String> matched = new HashMap<String, String>();
+        for (String key : headers.names()) {
             if (key.equals(filter)) {
-                System.out.println(key + " --> " + req.headers().get(key));
+                matched.put(key, headers.get(key));
             }
         }
+        return new Gson().toJson(matched);
     }
 
-    // debug
-    public static void printCookies(HttpServerRequest req) {
-        printHeaders(req, "Cookie");
+    public static void printCookies(MultiMap headers) {
+        printHeaders(headers, "Cookie");
     }
 
-    public static String getCookieValue(HttpServerRequest req, String name) {
-        for (String key : req.headers().names()) {
+    public static String getCookieValue(MultiMap headers, String name) {
+
+        for (String key : headers.names()) {
             if (key.equals("Cookie")) {
-
-                String headerValue = req.headers().get(key);
-
-                System.out.println("headerValue -->" + headerValue);
-
+                String headerValue = headers.get(key);
                 if (headerValue.startsWith(name)) {
                     String cookieValue = headerValue.replace(name + "=", "");
                     return cookieValue;
                 }
-                System.out.println(key + " --> " + req.headers().get(key));
+            }
+        }
+        return null;
+    }
+
+    public static String parseTokenFromQueryString(URI uri, String key) {
+        List<NameValuePair> nameValuePairs = URLEncodedUtils.parse(uri, "utf-8");
+        for (NameValuePair nvp : nameValuePairs) {
+            if (nvp.getName().equals(key)) {
+                return nvp.getValue();
             }
         }
         return null;
@@ -48,3 +68,19 @@ public class ReverseProxyUtil {
 
 
 }
+
+
+/*
+  // target server
+        vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
+            public void handle(final HttpServerRequest req) {
+
+                System.out.println("Target server processing request: " + req.uri());
+                req.response().setStatusCode(200);
+                req.response().setChunked(true);
+                req.response().write("foo");
+                req.response().end();
+            }
+        }).listen(8282);
+
+*/

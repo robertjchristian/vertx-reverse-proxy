@@ -4,7 +4,7 @@ package com.mycompany.myproject;
 import com.google.gson.Gson;
 import com.mycompany.myproject.configuration.Configuration;
 import com.mycompany.myproject.configuration.RewriteRule;
-import org.vertx.groovy.core.http.HttpServerResponse;
+
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
@@ -12,92 +12,32 @@ import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.http.HttpServerRequest;
+
+import org.vertx.java.core.logging.Logger;
+import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
 
+
+/**
+ * robertjchristian
+ */
 public class ReverseProxyVerticle extends Verticle {
 
+    private static final String PROXY_TARGET_TOKEN_KEY = "PROXY_TARGET";
+
+    private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
+
     private void returnFailure(HttpServerRequest req, String msg) {
-        container.logger().error(msg);
+        log.error(msg);
         req.response().setStatusCode(500);
         req.response().setStatusMessage("Internal Server Error");
         req.response().setChunked(true);
         req.response().write(msg);
         req.response().end();
-    }
-
-    private URL findTargetURLFromAbsoluteURL(Configuration config, HttpServerRequest req) {
-        try {
-            // parse original path from request uri
-            String rawURIPath = new URI(req.uri()).getPath().toString();
-
-            /**
-             * Parse rewrite token from URL
-             */
-
-            // Expected: host:port/rewriteToken/rest/of/target/path , where rewriteToken
-            // is a moniker that maps to the target host and port... so if "google" the
-            // moniker points to google.com:80, then host:port/google/foo rewrites to
-            // google.com:80/foo
-
-            String[] path = rawURIPath.split("/");
-            if (path.length < 2) {
-                returnFailure(req, "Expected first node in URI path to be rewrite token.");
-                return null;
-            }
-            String rewriteToken = path[1];
-            container.logger().debug("Rewrite token --> " + rewriteToken);
-
-            /**
-             * Lookup target protocol, host and port
-             */
-            RewriteRule r = config.getRewriteRules().get(rewriteToken);
-            if (r == null) {
-                returnFailure(req, "Couldn't find rewrite rule for '" + rewriteToken + "'");
-                return null;
-            }
-
-            /**
-             * Parse target path from URL
-             */
-            String targetPath = rawURIPath.substring(rewriteToken.length() + 1);
-            container.logger().debug("Target path --> " + targetPath);
-
-            /**
-             * Build target URL
-             */
-            String queryString = new URI(req.uri()).getQuery();
-            String spec = r.getProtocol() + "://" + r.getHost() + ":" + r.getPort() + targetPath;
-            spec = queryString != null ? spec + "?" + queryString : spec;
-            URL targetURL = new URL(spec);
-
-            container.logger().info("Target URL --> " + targetURL.toString());
-
-            // save rewrite token in browser cookie for subsequent
-            // relative http requests
-
-            req.response().putHeader("Set-Cookie", "proxy-token=" + rewriteToken + ";Path=/");
-
-
-            return targetURL;
-
-        } catch (Exception e) {
-            returnFailure(req, e.getLocalizedMessage());
-            return null;
-        }
-    }
-
-    private Configuration getConfiguration() {
-        // TODO want to pick these up dynamically
-        Gson g = new Gson();
-        final String rawConfig = container.config().toString();
-        System.out.println(rawConfig);
-        final Configuration config = g.fromJson(rawConfig, Configuration.class);
-        return config;
     }
 
     public void start() {
@@ -116,15 +56,48 @@ public class ReverseProxyVerticle extends Verticle {
         vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest req) {
 
+                //ReverseProxyUtil.printCookies(req.headers());
+
                 // get configuration as POJO
-                Configuration config = getConfiguration();
+                Configuration config = ReverseProxyUtil.getConfiguration(container);
 
                 // log
-                container.logger().info("Proxying request: " + req.method() + " " + req.uri());
-                //System.out.println("Rewrite rules: " + config.getRewriteRules());
+                log.info("Proxying request: " + req.method() + " " + req.uri());
 
                 // determine target url
-                URL targetURL = findTargetURLFromAbsoluteURL(config, req);
+                URI reqURI = null;
+                try {
+                    reqURI = new URI(req.uri());
+                } catch (URISyntaxException e) {
+                    returnFailure(req, "Bad URI: " + req.uri());
+                    return;
+                }
+
+                /**
+                 * Pull proxy target token from query string and cookie
+                 */
+
+                String proxyTargetFromQueryParam = ReverseProxyUtil.parseTokenFromQueryString(reqURI, PROXY_TARGET_TOKEN_KEY);
+                log.debug("Proxy target spec from QueryString --> " + proxyTargetFromQueryParam);
+
+                String proxyTargetFromCookie = ReverseProxyUtil.getCookieValue(req.headers(), PROXY_TARGET_TOKEN_KEY);
+                log.debug("Proxy target spec from Cookie --> " + proxyTargetFromCookie);
+
+                String token = null;
+
+                /**
+                 *  If on query string, overwrite any cookie value and set as the token
+                 */
+                if (proxyTargetFromQueryParam != null) {
+                     log.debug ("Overwriting cookie [" + proxyTargetFromCookie + "] value with qp [" + proxyTargetFromQueryParam + "] value.");
+                     req.response().putHeader("Set-Cookie", PROXY_TARGET_TOKEN_KEY + proxyTargetFromQueryParam + ";Path=/");
+                     token = proxyTargetFromQueryParam;
+                }
+
+
+                /**
+                 * Otherwise, make sure to redirect (set in browser)
+                 */
 
                 if (targetURL == null) {
                     String token = ReverseProxyUtil.getCookieValue(req, "proxy-token");
@@ -158,30 +131,24 @@ public class ReverseProxyVerticle extends Verticle {
                     }
                 }
 
-                //final String rewriteToken =
-
-                // debug
-                //ReverseProxyUtil.printHeaders(req);
 
                 /**
-                 * Figured out target URL
+                 * BEGIN REVERSE PROXYING
                  */
-                System.out.println("$$$$$$$$$$$$$$$$$$$  ---> " + targetURL);
-
 
                 final HttpClient client = vertx.createHttpClient().setHost(targetURL.getHost()).setPort(targetURL.getPort());
 
                 final HttpClientRequest cReq = client.request(req.method(), req.uri(), new Handler<HttpClientResponse>() {
                     public void handle(HttpClientResponse cRes) {
 
-                        System.out.println("Proxying response: " + cRes.statusCode());
+                        //System.out.println("Proxying response: " + cRes.statusCode());
                         req.response().setStatusCode(cRes.statusCode());
                         req.response().headers().set(cRes.headers());
 
                         req.response().setChunked(true);
                         cRes.dataHandler(new Handler<Buffer>() {
                             public void handle(Buffer data) {
-                                System.out.println("Proxying response body:" + data);
+                                //System.out.println("Proxying response body:" + data);
                                 req.response().write(data);
                             }
                         });
@@ -197,29 +164,19 @@ public class ReverseProxyVerticle extends Verticle {
                 cReq.setChunked(true);
                 req.dataHandler(new Handler<Buffer>() {
                     public void handle(Buffer data) {
-                        System.out.println("Proxying request body:" + data);
+                        //System.out.println("Proxying request body:" + data);
                         cReq.write(data);
                     }
                 });
                 req.endHandler(new VoidHandler() {
                     public void handle() {
-                        System.out.println("end of the request");
+                        //System.out.println("end of the request");
                         cReq.end();
                     }
                 });
             }
         }).listen(8080);
 
-        // target server
-        vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
-            public void handle(final HttpServerRequest req) {
-                System.out.println("Target server processing request: " + req.uri());
-                req.response().setStatusCode(200);
-                req.response().setChunked(true);
-                req.response().write("foo");
-                req.response().end();
-            }
-        }).listen(8282);
 
     }
 
