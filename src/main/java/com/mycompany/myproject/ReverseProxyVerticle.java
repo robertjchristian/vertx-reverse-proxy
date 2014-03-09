@@ -17,6 +17,7 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -26,8 +27,6 @@ import java.net.URL;
  * robertjchristian
  */
 public class ReverseProxyVerticle extends Verticle {
-
-    private static final String PROXY_TARGET_TOKEN_KEY = "PROXY_TARGET";
 
     private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
 
@@ -57,12 +56,12 @@ public class ReverseProxyVerticle extends Verticle {
             public void handle(final HttpServerRequest req) {
 
                 /**
-                 * Log, Get configuration, and make uri from request String
+                 * Log, get configuration, and make uri from request string
                  */
 
                 // log
-                log.info("Handling incoming proxy request: " + req.method() + " " + req.uri());
-                log.debug("Headers:\n" + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
+                log.info("Handling incoming proxy request:  " + req.method() + " " + req.uri());
+                log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
 
                 // get configuration as POJO
                 Configuration config = ReverseProxyUtil.getConfiguration(container);
@@ -77,75 +76,74 @@ public class ReverseProxyVerticle extends Verticle {
                 }
 
                 /**
-                 * Attempt to pull proxy-target-token from query string and cookie
+                 * Attempt to parse proxy-target-token from context path
                  */
 
-                String proxyTargetFromQueryParam = ReverseProxyUtil.parseTokenFromQueryString(reqURI, PROXY_TARGET_TOKEN_KEY);
-                log.debug("Proxy target spec from QueryString --> " + proxyTargetFromQueryParam);
+                String uriPath = reqURI.getPath().toString();
 
-                String proxyTargetFromCookie = ReverseProxyUtil.getCookieValue(req.headers(), PROXY_TARGET_TOKEN_KEY);
-                log.debug("Proxy target spec from Cookie --> " + proxyTargetFromCookie);
+                String[] path = uriPath.split("/");
+                if (path.length < 2) {
+                    returnFailure(req, "Expected first node in URI path to be rewrite token.");
+                    return;
+                }
+                String rewriteToken = path[1];
+                log.debug("Rewrite token --> " + rewriteToken);
 
                 /**
-                 * If there IS a proxy target cookie, and IS NOT a query string parameter,
-                 * then redirect to include target in query string.
+                 * Lookup rewrite rule for target protocol, host and port
                  */
-
-                if (null != proxyTargetFromCookie && null == proxyTargetFromQueryParam) {
-
-                    log.debug("Token not found in qs, but found in cookie.");
-                    config.getRewriteRules().get(proxyTargetFromCookie);
-
-                    log.debug("Redirecting with token in qs.");
-
-                    // use 307 (temp) instead of 301 (permanent)
-
-                    req.response().setStatusMessage("Moved Temporarilly");
-                    req.response().setStatusCode(307);
-                    req.response().putHeader("Location", "http://www.foo.com/");
+                RewriteRule r = config.getRewriteRules().get(rewriteToken);
+                if (r == null) {
+                    returnFailure(req, "Couldn't find rewrite rule for '" + rewriteToken + "'");
                     return;
                 }
 
+                /**
+                 * Parse target path from URL
+                 */
+                String targetPath = uriPath.substring(rewriteToken.length() + 1);
+                log.debug("Target path --> " + targetPath);
 
-
-                if (true) {
-                    req.response().setStatusMessage("Foo");
-                    req.response().setStatusCode(307);
-                    req.response().putHeader("Location", "http://localhost:8080/?target=google");
-                    req.response().end();
-                    return;
-                }
-
-
-
+                /**
+                 * Build target URL
+                 */
+                String queryString = reqURI.getQuery();
+                String spec = r.getProtocol() + "://" + r.getHost() + ":" + r.getPort() + targetPath;
+                spec = queryString != null ? spec + "?" + queryString : spec;
+                log.debug("Constructing target URL from --> " + spec);
                 URL targetURL = null;
-
                 try {
-                    targetURL = new URL("http://www.google.com:80");
-                } catch (Exception e) {
-                     e.printStackTrace();
+                    targetURL = new URL(spec);
+                } catch (MalformedURLException e) {
+                    returnFailure(req, "Failed to construct URL from " + spec);
+                    return;
                 }
 
-
-
+                log.info("Target URL --> " + targetURL.toString());
 
                 /**
                  * BEGIN REVERSE PROXYING
                  */
 
-                final HttpClient client = vertx.createHttpClient().setHost(targetURL.getHost()).setPort(targetURL.getPort());
+                final HttpClient client = vertx.createHttpClient();
 
-                final HttpClientRequest cReq = client.request(req.method(), req.uri(), new Handler<HttpClientResponse>() {
+                log.debug("Setting host --> " + targetURL.getHost());
+                client.setHost(targetURL.getHost());
+
+                log.debug("Setting port --> " + targetURL.getPort());
+                client.setPort(targetURL.getPort());
+
+                final HttpClientRequest cReq = client.request(req.method(), targetURL.getPath().toString(), new Handler<HttpClientResponse>() {
                     public void handle(HttpClientResponse cRes) {
 
-                        //System.out.println("Proxying response: " + cRes.statusCode());
+                        System.out.println("Proxying response: " + cRes.statusCode());
                         req.response().setStatusCode(cRes.statusCode());
                         req.response().headers().set(cRes.headers());
 
                         req.response().setChunked(true);
                         cRes.dataHandler(new Handler<Buffer>() {
                             public void handle(Buffer data) {
-                                //System.out.println("Proxying response body:" + data);
+                                System.out.println("Proxying response body:" + data);
                                 req.response().write(data);
                             }
                         });
@@ -173,7 +171,6 @@ public class ReverseProxyVerticle extends Verticle {
                 });
             }
         }).listen(8080);
-
 
     }
 

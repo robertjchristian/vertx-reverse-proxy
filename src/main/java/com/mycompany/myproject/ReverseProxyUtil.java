@@ -16,8 +16,6 @@ import java.util.List;
  */
 public class ReverseProxyUtil {
 
-
-
     // TODO want to pick these up dynamically
     public static Configuration getConfiguration(Container container) {
         Gson g = new Gson();
