@@ -16,9 +16,7 @@ import java.util.List;
  */
 public class ReverseProxyUtil {
 
-    public static String printHeaders(MultiMap headers) {
-        return new Gson().toJson(headers);
-    }
+
 
     // TODO want to pick these up dynamically
     public static Configuration getConfiguration(Container container) {
@@ -28,7 +26,7 @@ public class ReverseProxyUtil {
         return config;
     }
 
-    public static String printHeaders(MultiMap headers, String filter) {
+    public static String getHeadersAsJSON(MultiMap headers, String filter) {
         java.util.Map<String, String> matched = new HashMap<String, String>();
         for (String key : headers.names()) {
             if (key.equals(filter)) {
@@ -38,8 +36,12 @@ public class ReverseProxyUtil {
         return new Gson().toJson(matched);
     }
 
-    public static void printCookies(MultiMap headers) {
-        printHeaders(headers, "Cookie");
+    public static String getHeadersAsJSON(MultiMap headers) {
+        return new Gson().toJson(headers);
+    }
+
+    public static String getCookieHeadersAsJSON(MultiMap headers) {
+       return getHeadersAsJSON(headers, "Cookie");
     }
 
     public static String getCookieValue(MultiMap headers, String name) {
@@ -47,6 +49,7 @@ public class ReverseProxyUtil {
         for (String key : headers.names()) {
             if (key.equals("Cookie")) {
                 String headerValue = headers.get(key);
+                System.out.println("Cookie --> " + headerValue);
                 if (headerValue.startsWith(name)) {
                     String cookieValue = headerValue.replace(name + "=", "");
                     return cookieValue;

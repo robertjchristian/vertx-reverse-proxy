@@ -56,15 +56,18 @@ public class ReverseProxyVerticle extends Verticle {
         vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest req) {
 
-                //ReverseProxyUtil.printCookies(req.headers());
+                /**
+                 * Log, Get configuration, and make uri from request String
+                 */
+
+                // log
+                log.info("Handling incoming proxy request: " + req.method() + " " + req.uri());
+                log.debug("Headers:\n" + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
 
                 // get configuration as POJO
                 Configuration config = ReverseProxyUtil.getConfiguration(container);
 
-                // log
-                log.info("Proxying request: " + req.method() + " " + req.uri());
-
-                // determine target url
+                // req as uri
                 URI reqURI = null;
                 try {
                     reqURI = new URI(req.uri());
@@ -74,7 +77,7 @@ public class ReverseProxyVerticle extends Verticle {
                 }
 
                 /**
-                 * Pull proxy target token from query string and cookie
+                 * Attempt to pull proxy-target-token from query string and cookie
                  */
 
                 String proxyTargetFromQueryParam = ReverseProxyUtil.parseTokenFromQueryString(reqURI, PROXY_TARGET_TOKEN_KEY);
@@ -83,53 +86,47 @@ public class ReverseProxyVerticle extends Verticle {
                 String proxyTargetFromCookie = ReverseProxyUtil.getCookieValue(req.headers(), PROXY_TARGET_TOKEN_KEY);
                 log.debug("Proxy target spec from Cookie --> " + proxyTargetFromCookie);
 
-                String token = null;
-
                 /**
-                 *  If on query string, overwrite any cookie value and set as the token
+                 * If there IS a proxy target cookie, and IS NOT a query string parameter,
+                 * then redirect to include target in query string.
                  */
-                if (proxyTargetFromQueryParam != null) {
-                     log.debug ("Overwriting cookie [" + proxyTargetFromCookie + "] value with qp [" + proxyTargetFromQueryParam + "] value.");
-                     req.response().putHeader("Set-Cookie", PROXY_TARGET_TOKEN_KEY + proxyTargetFromQueryParam + ";Path=/");
-                     token = proxyTargetFromQueryParam;
+
+                if (null != proxyTargetFromCookie && null == proxyTargetFromQueryParam) {
+
+                    log.debug("Token not found in qs, but found in cookie.");
+                    config.getRewriteRules().get(proxyTargetFromCookie);
+
+                    log.debug("Redirecting with token in qs.");
+
+                    // use 307 (temp) instead of 301 (permanent)
+
+                    req.response().setStatusMessage("Moved Temporarilly");
+                    req.response().setStatusCode(307);
+                    req.response().putHeader("Location", "http://www.foo.com/");
+                    return;
                 }
 
 
-                /**
-                 * Otherwise, make sure to redirect (set in browser)
-                 */
 
-                if (targetURL == null) {
-                    String token = ReverseProxyUtil.getCookieValue(req, "proxy-token");
-
-                    if (token != null) {
-                        /**
-                         * Lookup target protocol, host and port   TODO share
-                         */
-                        RewriteRule r = config.getRewriteRules().get(token);
-                        if (r == null) {
-                            returnFailure(req, "Couldn't find rewrite rule for '" + token + "'");
-                            return;
-                        }
-
-                        /**
-                         * build url  TODO share
-                         */
-                        try {
-                            String queryString = new URI(req.uri()).getQuery();
-                            String spec = r.getProtocol() + "://" + r.getHost() + ":" + r.getPort() + req.uri();
-                            spec = queryString != null ? spec + "?" + queryString : spec;
-                            targetURL = new URL(spec);
-                        } catch (Exception e) {
-                            returnFailure(req, e.getLocalizedMessage());
-                            return;
-                        }
-
-                    } else {
-                        returnFailure(req, "Failed to determine rewrite.");
-                        return;
-                    }
+                if (true) {
+                    req.response().setStatusMessage("Foo");
+                    req.response().setStatusCode(307);
+                    req.response().putHeader("Location", "http://localhost:8080/?target=google");
+                    req.response().end();
+                    return;
                 }
+
+
+
+                URL targetURL = null;
+
+                try {
+                    targetURL = new URL("http://www.google.com:80");
+                } catch (Exception e) {
+                     e.printStackTrace();
+                }
+
+
 
 
                 /**
