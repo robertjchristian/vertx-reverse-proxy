@@ -13,6 +13,10 @@
         },
         "tb": {
             "host": "www.thomas-bayer.com"
+        },
+        "sb": {
+            "host": "localhost",
+            "port": 8000
         }
 
     }
