@@ -17,6 +17,10 @@
         "sb": {
             "host": "localhost",
             "port": 8000
+        },
+        "sn": {
+            "host": "localhost",
+            "port": 8989
         }
 
     }
