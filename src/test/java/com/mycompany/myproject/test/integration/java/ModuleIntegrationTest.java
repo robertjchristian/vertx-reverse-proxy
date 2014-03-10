@@ -49,7 +49,7 @@ public class ModuleIntegrationTest extends TestVerticle {
         final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(8080).setConnectTimeout(5);
 
 
-            HttpClientRequest request = client.get("/google/", new Handler<HttpClientResponse>() {
+            HttpClientRequest request = client.get("/google", new Handler<HttpClientResponse>() {
                 public void handle(final HttpClientResponse resp) {
 
                     // WARN:  Body Handler consumes to memory first... so large enough responses

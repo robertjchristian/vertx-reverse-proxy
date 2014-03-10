@@ -56,7 +56,19 @@ public class ReverseProxyVerticle extends Verticle {
 
                 // get configuration as POJO
                 Configuration config = ReverseProxyUtil.getConfiguration(container);
+                if (config == null) {
+                    log.error("No config found.");
+                    returnFailure(req, "Internal Error");
+                    return;
+                }
 
+                // get rewrite rules as POJO
+                if (config.getRewriteRules() == null) {
+                    log.error("No rewrite rules found.");
+                    returnFailure(req, "Internal Error");
+                    return;
+                }
+                
                 // req as uri
                 URI reqURI = null;
                 try {
