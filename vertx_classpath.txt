@@ -1,3 +1,4 @@
+build/mods
 src/main/resources
 out/production/vertx-reverse-proxy
 out/test/vertx-reverse-proxy
