@@ -28,6 +28,7 @@ import java.net.URL;
  */
 public class ReverseProxyVerticle extends Verticle {
 
+    // TODO is JUL logging okay?
     private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
 
     private void returnFailure(HttpServerRequest req, String msg) {
@@ -40,16 +41,6 @@ public class ReverseProxyVerticle extends Verticle {
     }
 
     public void start() {
-
-        // TODO Support rewrite rules within configuration (with host/port)
-
-        // TODO Create IntegrationMock verticle, driven by flag
-        // TODO this verticle should create target servers that
-        // TODO map to corresponding mappings within configuration
-
-        // TODO move hosts, ports, etc to configuration
-
-        // TODO is JUL logging okay?
 
         // proxy server
         vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
