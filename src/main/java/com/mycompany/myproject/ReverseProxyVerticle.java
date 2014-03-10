@@ -136,14 +136,14 @@ public class ReverseProxyVerticle extends Verticle {
                 final HttpClientRequest cReq = client.request(req.method(), targetURL.getPath().toString(), new Handler<HttpClientResponse>() {
                     public void handle(HttpClientResponse cRes) {
 
-                        System.out.println("Proxying response: " + cRes.statusCode());
+                        //System.out.println("Proxying response: " + cRes.statusCode());
                         req.response().setStatusCode(cRes.statusCode());
                         req.response().headers().set(cRes.headers());
 
                         req.response().setChunked(true);
                         cRes.dataHandler(new Handler<Buffer>() {
                             public void handle(Buffer data) {
-                                System.out.println("Proxying response body:" + data);
+                                //System.out.println("Proxying response body:" + data);
                                 req.response().write(data);
                             }
                         });
