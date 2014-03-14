@@ -1,27 +1,7 @@
 {
-    "rewriteRules": {
-        "google": {
-            "protocol": "http",
-            "host": "www.google.com",
-            "port": 80
-        },
-        "bing": {
-            "host": "bing.com"
-        },
-        "yahoo": {
-            "host": "yahoo.com"
-        },
-        "tb": {
-            "host": "www.thomas-bayer.com"
-        },
-        "sb": {
-            "host": "localhost",
-            "port": 8000
-        },
-        "sn": {
-            "host": "localhost",
-            "port": 8989
-        }
-
-    }
+	"configFilePath": "../../../conf2.json",
+	"keyStorePath": "../../../server-keystore.jks",
+	"keyStorePassword": "password",
+	"proxyHttpPort": "8787",
+	"proxyHttpsPort": "8788"
 }

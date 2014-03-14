@@ -1,9 +1,6 @@
 package com.mycompany.myproject.configuration;
 
-import java.util.HashMap;
 import java.util.Map;
-
-import com.google.gson.Gson;
 
 /**
  * Serializable Configuration
@@ -18,28 +15,57 @@ import com.google.gson.Gson;
  */
 public class Configuration {
 
-    private final Map<String, RewriteRule> rewriteRules;
+	private final String configFilePath;
+	private final String keyStorePath;
+	private final String keyStorePassword;
+	private final String trustStorePath;
+	private final String trustStorePassword;
+	private final int proxyHttpPort;
+	private final int proxyHttpsPort;
+	private final Map<String, RewriteRule> rewriteRules;
 
-    public Map<String, RewriteRule> getRewriteRules() {
-	return rewriteRules;
-    }
 
-    public Configuration(Map<String, RewriteRule> rewriteRules) {
-	this.rewriteRules = rewriteRules;
+	public Configuration(String configFilePath, String keyStorePath, String keyStorePassword, String trustStorePath, String trustStorePassword,
+			int proxyHttpPort, int proxyHttpsPort, Map<String, RewriteRule> rewriteRules) {
+		this.configFilePath = configFilePath;
+		this.keyStorePath = keyStorePath;
+		this.keyStorePassword = keyStorePassword;
+		this.trustStorePath = trustStorePath;
+		this.trustStorePassword = trustStorePassword;
+		this.proxyHttpPort = proxyHttpPort;
+		this.proxyHttpsPort = proxyHttpsPort;
+		this.rewriteRules = rewriteRules;
+	}
 
-    }
+	public Map<String, RewriteRule> getRewriteRules() {
+		return rewriteRules;
+	}
 
-    public static Configuration buildExampleConfiguration() {
-	HashMap<String, RewriteRule> rewriteRules = new HashMap<String, RewriteRule>();
-	rewriteRules.put("google", new RewriteRule("http", "google.com", 8080));
-	rewriteRules.put("yahoo", new RewriteRule("http", "yahoo.com", 8080));
-	rewriteRules.put("bing", new RewriteRule("http", "bing.com", 8080));
-	return new Configuration(rewriteRules);
-    }
+	public String getConfigFilePath() {
+		return configFilePath;
+	}
 
-    public static void main(String[] args) {
-	// generate an example json configuration
-	System.out.println(new Gson().toJson(buildExampleConfiguration()));
-    }
+	public String getKeyStorePath() {
+		return keyStorePath;
+	}
 
+	public String getKeyStorePassword() {
+		return keyStorePassword;
+	}
+
+	public String getTrustStorePath() {
+		return trustStorePath;
+	}
+
+	public String getTrustStorePassword() {
+		return trustStorePassword;
+	}
+
+	public int getProxyHttpPort() {
+		return proxyHttpPort;
+	}
+
+	public int getProxyHttpsPort() {
+		return proxyHttpsPort;
+	}
 }

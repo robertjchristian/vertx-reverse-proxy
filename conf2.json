@@ -1,0 +1,33 @@
+{
+    "trustStorePath": "../../../server-truststore.jks",
+    "trustStorePassword": "password",
+    "rewriteRules": {
+        "google": {
+            "protocol": "https", 
+            "host": "www.google.com",
+            "port": 80
+        },
+        "bing": {
+            "host": "bing.com"
+        },
+        "yahoo": {
+            "host": "yahoo.com"
+        },
+        "tb": {
+            "host": "www.thomas-bayer.com"
+        },
+        "sn": {
+            "host": "localhost",
+            "port": 8989
+        },
+        "daum": {
+        	"host": "daum.net"
+        },
+        "confluence": {
+        	"host": "confluence.liaison.tech"
+        },
+        "vertx": {
+        	"host": "vertx.io"
+        }
+    }
+}

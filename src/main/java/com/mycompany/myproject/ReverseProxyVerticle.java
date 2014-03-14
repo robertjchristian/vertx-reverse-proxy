@@ -4,18 +4,24 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Date;
 
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
+import org.vertx.java.core.file.FileProps;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
+import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
+import com.google.gson.Gson;
 import com.mycompany.myproject.configuration.Configuration;
 import com.mycompany.myproject.configuration.RewriteRule;
 
@@ -24,174 +30,228 @@ import com.mycompany.myproject.configuration.RewriteRule;
  */
 public class ReverseProxyVerticle extends Verticle {
 
-    // TODO is JUL logging okay?
-    private static final Logger log = LoggerFactory
-	    .getLogger(ReverseProxyVerticle.class);
+	// TODO is JUL logging okay?
+	private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
 
-    private void returnFailure(HttpServerRequest req, String msg) {
-	log.error(msg);
-	req.response().setStatusCode(500);
-	req.response().setStatusMessage("Internal Server Error");
-	req.response().setChunked(true);
-	req.response().write(msg);
-	req.response().end();
-    }
+	// static cache of configuration
+	private static Configuration config;
 
-    public void start() {
+	private void returnFailure(HttpServerRequest req, String msg) {
+		log.error(msg);
+		req.response().setStatusCode(500);
+		req.response().setStatusMessage("Internal Server Error");
+		req.response().setChunked(true);
+		req.response().write(msg);
+		req.response().end();
+	}
 
-	// proxy server
-	vertx.createHttpServer()
-		.requestHandler(new Handler<HttpServerRequest>() {
-		    public void handle(final HttpServerRequest req) {
+	public void readConfig(String filePath) {
+		vertx.fileSystem().readFile(filePath, new AsyncResultHandler<Buffer>() {
 
-			/**
-			 * PARSE REQUEST
-			 */
-
-			// log
-			log.info("Handling incoming proxy request:  "
-				+ req.method() + " " + req.uri());
-			log.debug("Headers:  "
-				+ ReverseProxyUtil.getCookieHeadersAsJSON(req
-					.headers()));
-
-			// get configuration as POJO
-			Configuration config = ReverseProxyUtil
-				.getConfiguration(container);
-			if (config == null) {
-			    log.error("No config found.");
-			    returnFailure(req, "Internal Error");
-			    return;
+			@Override
+			public void handle(AsyncResult<Buffer> event) {
+				Gson g = new Gson();
+				final String rawConfig = event.result().toString();
+				config = g.fromJson(rawConfig, Configuration.class);
 			}
 
-			// get rewrite rules as POJO
-			if (config.getRewriteRules() == null) {
-			    log.error("No rewrite rules found.");
-			    returnFailure(req, "Internal Error");
-			    return;
-			}
+		});
+	}
 
-			// req as uri
-			URI reqURI = null;
-			try {
-			    reqURI = new URI(req.uri());
-			} catch (URISyntaxException e) {
-			    returnFailure(req, "Bad URI: " + req.uri());
-			    return;
-			}
+	public void start() {
 
-			/**
-			 * ATTEMPT TO PARSE TARGET TOKEN FROM URL
-			 */
+		// get config file path from container configuration
+		final Configuration containerConfig = ReverseProxyUtil.getConfiguration(container);
 
-			String uriPath = reqURI.getPath().toString();
+		// check config file every 5 seconds
+		vertx.setPeriodic(5000, new Handler<Long>() {
+			Date lastModified = null;
 
-			String[] path = uriPath.split("/");
-			if (path.length < 2) {
-			    returnFailure(req,
-				    "Expected first node in URI path to be rewrite token.");
-			    return;
-			}
-			String rewriteToken = path[1];
-			log.debug("Rewrite token --> " + rewriteToken);
+			public void handle(Long timerId) {
+				vertx.fileSystem().props(containerConfig.getConfigFilePath(), new AsyncResultHandler<FileProps>() {
+					public void handle(AsyncResult<FileProps> ar) {
+						if (ar.succeeded()) {
 
-			/**
-			 * LOOKUP REWRITE RULE FROM TARGET TOKEN
-			 */
-			RewriteRule r = config.getRewriteRules().get(
-				rewriteToken);
-			if (r == null) {
-			    returnFailure(req,
-				    "Couldn't find rewrite rule for '"
-					    + rewriteToken + "'");
-			    return;
-			}
-
-			/**
-			 * PARSE TARGET PATH FROM URL
-			 */
-			String targetPath = uriPath.substring(rewriteToken
-				.length() + 1);
-			log.debug("Target path --> " + targetPath);
-
-			/**
-			 * BUILD TARGET URL
-			 */
-			String queryString = reqURI.getQuery();
-			String spec = r.getProtocol() + "://" + r.getHost()
-				+ ":" + r.getPort() + targetPath;
-			spec = queryString != null ? spec + "?" + queryString
-				: spec;
-			log.debug("Constructing target URL from --> " + spec);
-			URL targetURL = null;
-			try {
-			    targetURL = new URL(spec);
-			} catch (MalformedURLException e) {
-			    returnFailure(req, "Failed to construct URL from "
-				    + spec);
-			    return;
-			}
-
-			log.info("Target URL --> " + targetURL.toString());
-
-			/**
-			 * BEGIN REVERSE PROXYING
-			 */
-
-			final HttpClient client = vertx.createHttpClient();
-
-			log.debug("Setting host --> " + targetURL.getHost());
-			client.setHost(targetURL.getHost());
-
-			log.debug("Setting port --> " + targetURL.getPort());
-			client.setPort(targetURL.getPort());
-
-			final HttpClientRequest cReq = client.request(
-				req.method(), targetURL.getPath().toString(),
-				new Handler<HttpClientResponse>() {
-				    public void handle(HttpClientResponse cRes) {
-
-					// System.out.println("Proxying response: "
-					// + cRes.statusCode());
-					req.response().setStatusCode(
-						cRes.statusCode());
-					req.response().headers()
-						.set(cRes.headers());
-
-					req.response().setChunked(true);
-					cRes.dataHandler(new Handler<Buffer>() {
-					    public void handle(Buffer data) {
-						// System.out.println("Proxying response body:"
-						// + data);
-						req.response().write(data);
-					    }
-					});
-					cRes.endHandler(new VoidHandler() {
-					    public void handle() {
-						req.response().end();
-					    }
-					});
-				    }
+							// first config file look up
+							if (lastModified == null) {
+								log.debug("Monitoring for first time " + ar.result().lastModifiedTime());
+								lastModified = ar.result().lastModifiedTime();
+								readConfig(containerConfig.getConfigFilePath());
+							}
+							else {
+								// if config file has been modified
+								if (!lastModified.equals(ar.result().lastModifiedTime())) {
+									log.debug("File modified " + ar.result().lastModifiedTime());
+									lastModified = ar.result().lastModifiedTime();
+									readConfig(containerConfig.getConfigFilePath());
+								}
+								else {
+									// file not modified
+								}
+							}
+						}
+						else {
+							log.error("Reading File Prop Failed " + ar.cause());
+						}
+					}
 				});
+			}
+		});
 
-			cReq.headers().set(req.headers());
-			cReq.setChunked(true);
-			req.dataHandler(new Handler<Buffer>() {
-			    public void handle(Buffer data) {
-				// System.out.println("Proxying request body:" +
-				// data);
-				cReq.write(data);
-			    }
-			});
-			req.endHandler(new VoidHandler() {
-			    public void handle() {
-				// System.out.println("end of the request");
-				cReq.end();
-			    }
-			});
-		    }
-		}).listen(8080);
+		final HttpServer httpServer = vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
 
-    }
+			@Override
+			public void handle(final HttpServerRequest req) {
+				log.debug(req.absoluteURI());
+				log.debug("http. redirecting");
+				req.response().setStatusCode(302);
+				req.response().setChunked(true);
+				req.response()
+						.headers()
+						.add("Location",
+								String.format("https://%s:%d%s", "localhost", containerConfig.getProxyHttpsPort(), req.absoluteURI().getPath().toString()));
+				req.response().end();
+			}
 
+		});
+
+		final HttpServer httpsServer = vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
+
+			@Override
+			public void handle(final HttpServerRequest req) {
+				log.debug(req.absoluteURI());
+				if (req.absoluteURI().getScheme().equals("https")) {
+					/**
+					 * PARSE REQUEST
+					 */
+					log.info("Handling incoming proxy request:  " + req.method() + " " + req.uri());
+					log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
+
+					if (config == null) {
+						log.error("No config found.");
+						returnFailure(req, "Internal Error");
+						return;
+					}
+
+					// get rewrite rules as POJO
+					if (config.getRewriteRules() == null) {
+						log.error("No rewrite rules found.");
+						returnFailure(req, "Internal Error");
+						return;
+					}
+
+					// req as uri
+					URI reqURI = null;
+					try {
+						reqURI = new URI(req.uri());
+					}
+					catch (URISyntaxException e) {
+						returnFailure(req, "Bad URI: " + req.uri());
+						return;
+					}
+
+					/**
+					 * ATTEMPT TO PARSE TARGET TOKEN FROM URL
+					 */
+
+					String uriPath = reqURI.getPath().toString();
+
+					String[] path = uriPath.split("/");
+					if (path.length < 2) {
+						returnFailure(req, "Expected first node in URI path to be rewrite token.");
+						return;
+					}
+					String rewriteToken = path[1];
+					log.debug("Rewrite token --> " + rewriteToken);
+
+					/**
+					 * LOOKUP REWRITE RULE FROM TARGET TOKEN
+					 */
+					RewriteRule r = config.getRewriteRules().get(rewriteToken);
+					if (r == null) {
+						returnFailure(req, "Couldn't find rewrite rule for '" + rewriteToken + "'");
+						return;
+					}
+
+					/**
+					 * PARSE TARGET PATH FROM URL
+					 */
+					String targetPath = uriPath.substring(rewriteToken.length() + 1);
+					log.debug("Target path --> " + targetPath);
+
+					/**
+					 * BUILD TARGET URL
+					 */
+					String queryString = reqURI.getQuery();
+					String spec = r.getProtocol() + "://" + r.getHost() + ":" + r.getPort() + targetPath;
+					spec = queryString != null ? spec + "?" + queryString : spec;
+					log.debug("Constructing target URL from --> " + spec);
+					URL targetURL = null;
+					try {
+						targetURL = new URL(spec);
+					}
+					catch (MalformedURLException e) {
+						returnFailure(req, "Failed to construct URL from " + spec);
+						return;
+					}
+
+					log.info("Target URL --> " + targetURL.toString());
+
+					/**
+					 * BEGIN REVERSE PROXYING
+					 */
+
+					final HttpClient client = vertx.createHttpClient();
+					if (r.getProtocol().equalsIgnoreCase("https")) {
+						log.debug("creating https client");
+						client.setSSL(true);
+						client.setTrustStorePath(config.getTrustStorePath());
+						client.setTrustStorePassword(config.getTrustStorePassword());
+					}
+
+					log.debug("Setting host --> " + targetURL.getHost());
+					client.setHost(targetURL.getHost());
+
+					log.debug("Setting port --> " + targetURL.getPort());
+					client.setPort(targetURL.getPort());
+
+					final HttpClientRequest cReq = client.request(req.method(), targetURL.getPath().toString(), new Handler<HttpClientResponse>() {
+						public void handle(HttpClientResponse cRes) {
+							req.response().setStatusCode(cRes.statusCode());
+							req.response().headers().set(cRes.headers());
+
+							req.response().setChunked(true);
+							cRes.dataHandler(new Handler<Buffer>() {
+								public void handle(Buffer data) {
+									req.response().write(data);
+								}
+							});
+							cRes.endHandler(new VoidHandler() {
+								public void handle() {
+									req.response().end();
+								}
+							});
+						}
+					});
+
+					cReq.headers().set(req.headers());
+					cReq.setChunked(true);
+					req.dataHandler(new Handler<Buffer>() {
+						public void handle(Buffer data) {
+							cReq.write(data);
+						}
+					});
+					req.endHandler(new VoidHandler() {
+						public void handle() {
+							cReq.end();
+						}
+					});
+				}
+			}
+
+		}).setSSL(true).setKeyStorePath(containerConfig.getKeyStorePath()).setKeyStorePassword(containerConfig.getKeyStorePassword());
+
+		httpServer.listen(containerConfig.getProxyHttpPort());
+		httpsServer.listen(containerConfig.getProxyHttpsPort());
+	}
 }
