@@ -2,6 +2,6 @@
 	"configFilePath": "../../../conf2.json",
 	"keyStorePath": "../../../server-keystore.jks",
 	"keyStorePassword": "password",
-	"proxyHttpPort": "8787",
-	"proxyHttpsPort": "8788"
+	"proxyHttpPort": "8988",
+	"proxyHttpsPort": "8989"
 }
