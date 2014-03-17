@@ -28,6 +28,7 @@ import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.testtools.TestVerticle;
 
 /**
@@ -83,10 +84,13 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 		// Deploy the module - the System property `vertx.modulename` will contain the name of the module so you
 		// don't have to hardecode it in your tests
-		container.deployModule(System.getProperty("vertx.modulename"), new AsyncResultHandler<String>() {
+
+		JsonObject config = new JsonObject();
+		config.putNumber("proxyHttpPort", 8988);
+
+		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override
 			public void handle(AsyncResult<String> asyncResult) {
-
 				// Deployment is asynchronous and this this handler will be called when it's complete (or failed)
 				if (asyncResult.failed()) {
 					container.logger().error(asyncResult.cause());
@@ -99,5 +103,4 @@ public class ModuleIntegrationTest extends TestVerticle {
 			}
 		});
 	}
-
 }
