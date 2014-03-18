@@ -4,8 +4,7 @@
     "rewriteRules": {
         "google": {
             "protocol": "https", 
-            "host": "www.google.com",
-            "port": 80
+            "host": "www.google.com"
         },
         "bing": {
             "host": "bing.com"
@@ -20,14 +19,13 @@
             "host": "localhost",
             "port": 8989
         },
-        "daum": {
-        	"host": "daum.net"
+        "acl": {
+        	"host": "localhost",
+        	"port": 9000 
         },
-        "confluence": {
-        	"host": "confluence.liaison.tech"
-        },
-        "vertx": {
-        	"host": "vertx.io"
+        "soi": {
+        	"host": "soi.uat.liaison.com",
+        	"protocol": "http"
         }
     }
 }
