@@ -48,7 +48,21 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 		container.logger().info("Testing proxy server...");
 
-		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(8988).setConnectTimeout(5);
+		try {
+			Thread.sleep(5000);
+		}
+		catch (InterruptedException e) {
+			// do nothing
+		}
+
+		// create ssl client. trust all for testing purpose
+		final HttpClient client = vertx.createHttpClient()
+				.setSSL(true)
+				.setTrustAll(true)
+				.setVerifyHost(false)
+				.setHost("localhost")
+				.setPort(8989)
+				.setConnectTimeout(5);
 
 		HttpClientRequest request = client.get("/google", new Handler<HttpClientResponse>() {
 			public void handle(final HttpClientResponse resp) {
@@ -60,7 +74,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 						// The entire response body has been received
 						//container.logger().info("The total body received was " + body.length() + " bytes");
-						container.logger().info("Got a response: " + resp.statusCode() + " " + resp.statusMessage() + " - " + body.toString());
+						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
 
 						// close the client
 						client.close();
@@ -76,6 +90,86 @@ public class ModuleIntegrationTest extends TestVerticle {
 		request.end();
 	}
 
+	@Test
+	public void testUserManagementServerAuth() {
+		container.logger().info("Testing authentication in UserManagement server...");
+
+		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
+
+		HttpClientRequest request = client.post("/authenticate", new Handler<HttpClientResponse>() {
+			public void handle(final HttpClientResponse resp) {
+
+				resp.bodyHandler(new Handler<Buffer>() {
+					public void handle(Buffer body) {
+
+						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
+						client.close();
+						testComplete();
+
+					}
+				});
+
+			}
+		});
+		// sample basic auth header
+		request.putHeader("Authorization", "Basic ZGVtb2ZvcmFjbEBsaWFpc29uLmRldjpVMjl1YW1GMllURXlNdz09");
+		request.end();
+	}
+
+	@Test
+	public void testUserManagementServerSign() {
+		container.logger().info("Testing signing in UserManagement server...");
+
+		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
+
+		HttpClientRequest request = client.post("/sign", new Handler<HttpClientResponse>() {
+			public void handle(final HttpClientResponse resp) {
+
+				resp.bodyHandler(new Handler<Buffer>() {
+					public void handle(Buffer body) {
+
+						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
+						client.close();
+						testComplete();
+
+					}
+				});
+
+			}
+		});
+		String content = vertx.fileSystem().readFileSync("usermanagement/payload_sign_request.txt").toString();
+		request.setChunked(true);
+		request.write(content);
+		request.end();
+	}
+
+	@Test
+	public void testAclServerGetManifest() {
+		container.logger().info("Testing getting manifest from Mock ACL server...");
+
+		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9001).setConnectTimeout(5);
+
+		HttpClientRequest request = client.post("/verifyAndGetManifest", new Handler<HttpClientResponse>() {
+			public void handle(final HttpClientResponse resp) {
+
+				resp.bodyHandler(new Handler<Buffer>() {
+					public void handle(Buffer body) {
+
+						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
+						client.close();
+						testComplete();
+
+					}
+				});
+
+			}
+		});
+		String content = vertx.fileSystem().readFileSync("usermanagement/payload_sign_request.txt").toString();
+		request.setChunked(true);
+		request.write(content);
+		request.end();
+	}
+
 	@Override
 	public void start() {
 
@@ -86,7 +180,14 @@ public class ModuleIntegrationTest extends TestVerticle {
 		// don't have to hardecode it in your tests
 
 		JsonObject config = new JsonObject();
-		config.putNumber("proxyHttpPort", 8988);
+		config.putNumber("proxyHttpsPort", 8989);
+		// these configurations need to be changed if there are changes in conf.json 
+		config.putString("configFilePath", "../../../conf.json");
+		config.putString("keyStorePath", "../../../server-keystore.jks");
+		config.putString("keyStorePassword", "password");
+
+		container.deployVerticle("com.mycompany.myproject.mock.UserManagementVerticle");
+		container.deployVerticle("com.mycompany.myproject.mock.AclVerticle");
 
 		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override

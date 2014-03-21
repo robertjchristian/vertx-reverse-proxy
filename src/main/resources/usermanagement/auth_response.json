@@ -1,0 +1,11 @@
+{
+	"authenticationResponse": {
+		"response": {
+			"message": "Account authenticated successfully.",
+			"status": "success",
+			"authentication": "success",
+			"authenticationToken": "8C+jmez37Suy1Sg/6Tugzt+oljVoK5VG7HwKJPdYIcf5hRpOa4FGh8QRKXzfo31Tty1YSO0ID0i/oh2IDv0SmNzb3ZPKj2XMFsrplsOCEGk=",
+			"sessionDate": "2014-03-19T15:22:33-0400"
+		}
+	}
+}

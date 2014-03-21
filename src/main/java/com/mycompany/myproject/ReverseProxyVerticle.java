@@ -4,14 +4,12 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Date;
 
 import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.file.FileProps;
+import org.vertx.java.core.eventbus.impl.BaseMessage;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
@@ -34,7 +32,7 @@ public class ReverseProxyVerticle extends Verticle {
 	private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
 
 	// static cache of configuration
-	private static Configuration config;
+	private Configuration config;
 
 	private void returnFailure(HttpServerRequest req, String msg) {
 		log.error(msg);
@@ -45,17 +43,9 @@ public class ReverseProxyVerticle extends Verticle {
 		req.response().end();
 	}
 
-	public void readConfig(String filePath) {
-		vertx.fileSystem().readFile(filePath, new AsyncResultHandler<Buffer>() {
-
-			@Override
-			public void handle(AsyncResult<Buffer> event) {
-				Gson g = new Gson();
-				final String rawConfig = event.result().toString();
-				config = g.fromJson(rawConfig, Configuration.class);
-			}
-
-		});
+	public void readConfig(final String fileContent) {
+		Gson g = new Gson();
+		config = g.fromJson(fileContent, Configuration.class);
 	}
 
 	public void start() {
@@ -63,64 +53,29 @@ public class ReverseProxyVerticle extends Verticle {
 		// get config file path from container configuration
 		final Configuration containerConfig = ReverseProxyUtil.getConfiguration(container);
 
-		// check config file every 5 seconds
-		vertx.setPeriodic(5000, new Handler<Long>() {
-			Date lastModified = null;
-
-			public void handle(Long timerId) {
-				vertx.fileSystem().props(containerConfig.getConfigFilePath(), new AsyncResultHandler<FileProps>() {
-					public void handle(AsyncResult<FileProps> ar) {
-						if (ar.succeeded()) {
-
-							// first config file look up
-							if (lastModified == null) {
-								log.debug("Monitoring for first time " + ar.result().lastModifiedTime());
-								lastModified = ar.result().lastModifiedTime();
-								readConfig(containerConfig.getConfigFilePath());
-							}
-							else {
-								// if config file has been modified
-								if (!lastModified.equals(ar.result().lastModifiedTime())) {
-									log.debug("File modified " + ar.result().lastModifiedTime());
-									lastModified = ar.result().lastModifiedTime();
-									readConfig(containerConfig.getConfigFilePath());
-								}
-								else {
-									// file not modified
-								}
-							}
-						}
-						else {
-							log.error("Reading File Prop Failed " + ar.cause());
-						}
-					}
-				});
+		container.deployModule("com.mycompany~file-cache~1.0.0-SNAPSHOT", new Handler<AsyncResult<String>>() {
+			@Override
+			public void handle(AsyncResult<String> event) {
+				if (event.succeeded()) {
+					log.debug("publishing file registration: " + containerConfig.getConfigFilePath());
+					vertx.eventBus().publish("file_registration", containerConfig.getConfigFilePath());
+				}
 			}
 		});
 
-		final HttpServer httpServer = vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
-
+		vertx.eventBus().registerHandler(containerConfig.getConfigFilePath(), new Handler<BaseMessage<String>>() {
 			@Override
-			public void handle(final HttpServerRequest req) {
-				log.debug("http. redirecting");
-
-				req.response().setStatusCode(302);
-				req.response().setChunked(true);
-				req.response()
-						.headers()
-						.add("Location",
-								String.format("https://%s:%d%s", req.localAddress().getHostString(), containerConfig.getProxyHttpsPort(), req.absoluteURI()
-										.getPath()
-										.toString()));
-				req.response().end();
+			public void handle(BaseMessage<String> event) {
+				log.debug("received new configs for conf: \n" + event.body());
+				readConfig(event.body());
 			}
-
 		});
 
 		final HttpServer httpsServer = vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
 
 			@Override
 			public void handle(final HttpServerRequest req) {
+
 				/**
 				 * PARSE REQUEST
 				 */
@@ -249,32 +204,6 @@ public class ReverseProxyVerticle extends Verticle {
 
 		}).setSSL(true).setKeyStorePath(containerConfig.getKeyStorePath()).setKeyStorePassword(containerConfig.getKeyStorePassword());
 
-		httpServer.listen(containerConfig.getProxyHttpPort());
 		httpsServer.listen(containerConfig.getProxyHttpsPort());
-
-		// Mock ACL server
-		vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
-
-			@Override
-			public void handle(final HttpServerRequest req) {
-
-				vertx.fileSystem().readFile("acl/manifest1.json", new AsyncResultHandler<Buffer>() {
-
-					@Override
-					public void handle(AsyncResult<Buffer> event) {
-						log.debug(event.result().toString());
-						req.response().setChunked(true);
-						req.response().headers().add("Server", "nginx/1.4.4");
-						req.response().headers().add("Date", new Date().toString());
-						req.response().headers().add("Content-Type", "multipart/form-data; boundary=Boundary_3_1687687949_1394809285583");
-						req.response().headers().add("MIME-Version", "1.0");
-						req.response().write(event.result().toString());
-						req.response().setStatusCode(200);
-						req.response().end();
-					}
-
-				});
-			}
-		}).listen(9000);
 	}
 }
