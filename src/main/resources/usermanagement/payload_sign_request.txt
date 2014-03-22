@@ -1,0 +1,17 @@
+Content-type: multipart/form-data; boundary=AaB03x
+Content-Length: $requestlen
+SAMPLE_HEADER: myValue
+
+--AaB03x
+content-disposition: form-data; name="AUTHENTICATION_TOKEN"
+
+8C+jmez37Suy1Sg/6Tugzt+oljVoK5VG7HwKJPdYIcfsBFSwuaQASKIPSW9ayU9rpOrPQZel5U0IZIB0ybvMPjEw+N9pjCM1cjlEouPs54A=
+--AaB03x
+content-disposition: form-data; name="UM_SESSION_DATE"
+
+2014-03-19T12:08:34-0400
+--AaB03x
+content-disposition: form-data; name="ORIGINAL_PAYLOAD"
+
+{"sample": "this is sample request"}
+--AaB03x-
