@@ -36,7 +36,7 @@ public class FileCacheVerticle extends Verticle {
     /**
      * Asynchronously schedule a cache update
      */
-    public void scheduleUpdate(final FileCache cache, final long refreshIntervalMillis) {
+    public void scheduleUpdate(final FileCacheImpl cache, final long refreshIntervalMillis) {
 
         log.debug("Starting cache update...");
 
@@ -68,7 +68,7 @@ public class FileCacheVerticle extends Verticle {
         final EventBus bus = vertx.eventBus();
 
         // set the cache reference
-        final FileCache FILE_CACHE = new FileCache(this.getVertx().fileSystem(), ".");
+        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx().fileSystem(), ".");
 
         /**
          * Listen for requests on event bus on channel FILE_CACHE_CHANNEL

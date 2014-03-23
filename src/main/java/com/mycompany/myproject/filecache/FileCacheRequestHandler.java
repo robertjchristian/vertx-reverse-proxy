@@ -24,16 +24,16 @@ public class FileCacheRequestHandler implements Handler<Message<String>> {
     /**
      * File cache reference
      */
-    private final FileCache fileCache;
+    private final FileCacheImpl fileCache;
 
-    public FileCacheRequestHandler(FileCache fileCache) {
+    public FileCacheRequestHandler(FileCacheImpl fileCache) {
         this.fileCache = fileCache;
     }
 
     @Override
     public void handle(final Message<String> message) {
 
-        log.debug("FileCache received cache request on [" + message.address() + "] for [ " + message.body() + "]");
+        log.debug("FileCacheImpl received cache request on [" + message.address() + "] for [ " + message.body() + "]");
 
         String path = message.body();
 
