@@ -20,16 +20,16 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
  */
-public class FileCache {
+public class FileCacheImpl {
 
-    private static final Logger log = LoggerFactory.getLogger(FileCache.class);
+    private static final Logger log = LoggerFactory.getLogger(FileCacheImpl.class);
     private FileSystem fs;
     private String basePath;
 
     // the cache
     private ConcurrentMap<String, FileCacheEntry> cacheMap;
 
-    public FileCache(FileSystem fileSystem, String basePath) {
+    public FileCacheImpl(FileSystem fileSystem, String basePath) {
         super();
         this.fs = fileSystem;
         this.basePath = basePath;
