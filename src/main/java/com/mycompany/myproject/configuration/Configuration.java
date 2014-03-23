@@ -11,6 +11,8 @@ import java.util.Map;
  * <p/>
  * The application will fail to bootstrap if "Configuration" cannot be built
  * from conf.json.
+ *
+ * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
  */
 public class Configuration {
 

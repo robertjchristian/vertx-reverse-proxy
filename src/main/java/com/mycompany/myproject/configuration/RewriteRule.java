@@ -1,8 +1,9 @@
 package com.mycompany.myproject.configuration;
 
 /**
- * Created with IntelliJ IDEA. User: rob Date: 3/5/14 Time: 12:52 PM To change
- * this template use File | Settings | File Templates.
+ * Encapsulates an individual rewrite rule.
+ *
+ * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
  */
 public class RewriteRule {
 
