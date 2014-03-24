@@ -67,10 +67,6 @@ public class FileCacheImpl {
                                 // TODO consider including all properties
 
                                 FileCacheEntry entry = new FileCacheEntry() {
-                                    @Override
-                                    public String absoluteFilepath() {
-                                        return path;
-                                    }
 
                                     @Override
                                     public long lastModified() {

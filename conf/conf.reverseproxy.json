@@ -13,8 +13,8 @@
             "port": 8080
         },
         "google": {
-            "protocol": "http",
-            "host": "google.com",
+            "protocol": "https",
+            "host": "wellsfargo.com",
             "port": 80
         },
         "acl": {

@@ -19,6 +19,9 @@ import org.vertx.java.core.logging.Logger;
  */
 public class FileMarshalUtil {
 
+    // TODO add a readConfig that loads the file synchronously
+
+
     public static <T> void readConfig(final EventBus bus, final Logger log, final Class<T> clazz, final String path, final AsyncResultHandler<T> handler) {
 
         // NOTE:  This only blocks on the first hit (on startup)... once the file is in the cache,
@@ -35,7 +38,6 @@ public class FileMarshalUtil {
 
                 byte[] fileContents = event.body();
                 String fileAsString = new String(fileContents); // TODO mind encoding
-
 
                 Gson g = new Gson();
 
