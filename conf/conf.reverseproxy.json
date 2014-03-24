@@ -1,0 +1,31 @@
+{
+    "ssl": {
+        "trustStorePath": "../../../server-truststore.jks",
+        "trustStorePassword": "password",
+        "keyStorePath": "../../../server-keystore.jks",
+        "keyStorePassword": "password",
+        "proxyHttpsPort": 8989
+    },
+    "rewriteRules": {
+        "sn": {
+            "protocol": "http",
+            "host": "localhost",
+            "port": 8080
+        },
+        "google": {
+            "protocol": "http",
+            "host": "google.com",
+            "port": 80
+        },
+        "acl": {
+            "protocol": "http",
+            "host": "localhost",
+            "port": 9001
+        },
+        "um": {
+            "protocol": "http",
+            "host": "localhost",
+            "port": 9000
+        }
+    }
+}

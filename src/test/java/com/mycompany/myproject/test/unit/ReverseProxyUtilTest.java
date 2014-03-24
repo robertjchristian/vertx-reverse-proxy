@@ -1,6 +1,6 @@
 package com.mycompany.myproject.test.unit;
 
-import com.mycompany.myproject.ReverseProxyUtil;
+import com.mycompany.myproject.verticles.reverseproxy.ReverseProxyUtil;
 import org.junit.Test;
 
 import java.net.MalformedURLException;

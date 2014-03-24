@@ -1,32 +1,3 @@
 {
-	"configFilePath": "../../../conf.json",
-	"keyStorePath": "../../../server-keystore.jks",
-	"keyStorePassword": "password",
-	"proxyHttpsPort": "8989",
-	"trustStorePath": "../../../server-truststore.jks",
-	"trustStorePassword": "password",
-	"rewriteRules": {
-		"google": { 
-			"protocol": "http", 
-			"host": "www.google.com"
-		},
-		"bing": {
-			"host": "bing.com"
-		},
-		"yahoo": {
-			"host": "yahoo.com"
-		},
-		"sn": {
-			"host": "localhost",
-			"port": 8989
-		},
-		"acl": {
-			"host": "localhost",
-			"port": 9001 
-		},
-		"um": {
-			"host": "localhost",
-			"port": 9000
-		}
-	}
+    "Comment": "See ./conf folder for configuration."
 }
