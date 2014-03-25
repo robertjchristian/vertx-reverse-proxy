@@ -16,6 +16,10 @@ package com.mycompany.myproject.test.integration.java;/*
 * @author <a href="http://tfox.org">Tim Fox</a>
 */
 
+import static org.vertx.testtools.VertxAssert.assertNotNull;
+import static org.vertx.testtools.VertxAssert.assertTrue;
+import static org.vertx.testtools.VertxAssert.testComplete;
+
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -26,8 +30,6 @@ import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.testtools.TestVerticle;
-
-import static org.vertx.testtools.VertxAssert.*;
 
 /**
  * Example Java integration test that deploys the module that this project builds.
@@ -184,8 +186,8 @@ public class ModuleIntegrationTest extends TestVerticle {
 		config.putString("keyStorePath", "../../../server-keystore.jks");
 		config.putString("keyStorePassword", "password");
 
-		container.deployVerticle("com.mycompany.myproject.mock.UserManagementVerticle");
-		container.deployVerticle("com.mycompany.myproject.mock.AclVerticle");
+		container.deployVerticle("com.mycompany.myproject.test.mock.UserManagementVerticle");
+		container.deployVerticle("com.mycompany.myproject.test.mock.AclVerticle");
 
 		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override
