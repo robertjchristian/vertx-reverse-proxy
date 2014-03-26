@@ -20,6 +20,8 @@ import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
+import java.io.UnsupportedEncodingException;
+
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -43,7 +45,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 	// TODO pick up config on the fly (changes currently require restart of verticle)
 
-	@Test
+	//@Test
 	public void testProxyServer() {
 
 		container.logger().info("Testing proxy server...");
@@ -91,7 +93,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 	}
 
 	@Test
-	public void testUserManagementServerAuth() {
+	public void testUserManagementServerAuth() throws UnsupportedEncodingException {
 		container.logger().info("Testing authentication in UserManagement server...");
 
 		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
@@ -111,8 +113,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 			}
 		});
-		// sample basic auth header
-		request.putHeader("Authorization", "Basic ZGVtb2ZvcmFjbEBsaWFpc29uLmRldjpVMjl1YW1GMllURXlNdz09");
+		request.putHeader("Authorization", "Basic anVuOmp1bjEyMw==");
 		request.end();
 	}
 
@@ -143,7 +144,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 		request.end();
 	}
 
-	@Test
+	//@Test
 	public void testAclServerGetManifest() {
 		container.logger().info("Testing getting manifest from Mock ACL server...");
 
@@ -164,7 +165,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 			}
 		});
-		String content = vertx.fileSystem().readFileSync("usermanagement/payload_sign_request.txt").toString();
+		String content = vertx.fileSystem().readFileSync("manifest_request.txt").toString();
 		request.setChunked(true);
 		request.write(content);
 		request.end();
