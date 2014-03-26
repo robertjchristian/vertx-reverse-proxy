@@ -29,19 +29,37 @@ import java.net.URL;
  */
 public class ReverseProxyVerticle extends Verticle {
 
-    public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
+    /**
+     * Log
+     */
     private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
-    // static cache of configuration
+
+    /**
+     * Configuration path
+     */
+    public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
+
+    /**
+     * Configuration parsed and hydrated
+     */
     private ReverseProxyConfiguration config;
 
-    // TODO listen on event bus for update to CONFIG_PATH file, and re-read/reset config
-    // TODO make sure that event bus handler and http request handler are both handled
-    // TODO by same thread (that is the thread running this verticle)
 
-    // TODO consider adding a readConfig that loads the file synchronously
-    // TODO move this out of file cache
+
+    //
+    //
+    // TODO A) Isolate configuration loading and updating to a utility / base class
+    // TODO B) Ensure that the update response handler and http server are run by
+    // TODO    the same thread. (thereby avoiding a config change in the middle of
+    // TODO    processing an HTTP request)
+    // TODO C) Reuse dynamic vertical config updating for other verticles
+    //
+    //
+
     protected static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
-        String fileAsString = new String(fileContents); // TODO mind encoding
+        // TODO mind encoding
+        String fileAsString = new String(fileContents);
+
         Gson g = new Gson();
         T c = g.fromJson(fileAsString, clazz);
         return c;
@@ -52,8 +70,6 @@ public class ReverseProxyVerticle extends Verticle {
      */
     public void start() {
 
-        // TODO:  Bootstrap load should be synch... (but runtime should remain asynch)
-        // TODO: listen for update on event bus, and update config appropriately
         FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
             @Override
             public void handle(AsyncResult<byte[]> event) {
