@@ -19,7 +19,7 @@ public class BootstrapVerticle extends Verticle {
 
         // TODO consider (1) load filecache conf, (2) deploy using file cache conf
 
-        container.deployVerticle("com.mycompany.myproject.filecache.FileCacheVerticle", container.config(), new AsyncResultHandler<String>() {
+        container.deployVerticle("com.mycompany.myproject.verticles.filecache.FileCacheVerticle", container.config(), new AsyncResultHandler<String>() {
             @Override
             public void handle(AsyncResult<String> event) {
                 deployAdditionalVerticles();
