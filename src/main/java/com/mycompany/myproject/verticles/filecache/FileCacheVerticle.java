@@ -8,6 +8,8 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
+import java.util.Set;
+
 /**
  * File cache verticle
  * <p/>
@@ -29,11 +31,6 @@ public class FileCacheVerticle extends Verticle {
     public static final String FILE_CACHE_CHANNEL = "file.cache.channel";
 
     /**
-     * Root directory used for completing relative paths
-     */
-    public static final String BASE_DIRECTORY = ".";
-
-    /**
      * Delay in milliseconds between cache updates
      */
     private static final int REFRESH_INTERVAL_MILLIS = 30 * 1000; // update every 30 seconds by default
@@ -43,13 +40,20 @@ public class FileCacheVerticle extends Verticle {
      */
     public void scheduleUpdate(final FileCacheImpl cache, final long refreshIntervalMillis) {
 
-        log.debug("Starting cache update...");
+        log.debug("Starting FileCache update...");
 
-        cache.updateCache(new AsyncResultHandler<Integer>() {
+        cache.updateCache(new AsyncResultHandler<Set<FileCacheEntry>>() {
             @Override
-            public void handle(AsyncResult<Integer> event) {
-                int numUpdated = event.result() == null ? 0 : event.result();
-                log.debug("Completed update.  " + numUpdated + " files checked.");
+            public void handle(AsyncResult<Set<FileCacheEntry>> event) {
+
+                // broadcast updates
+                for (FileCacheEntry entry : event.result()) {
+
+                    // TODO should be notifying on failures as well
+                    vertx.eventBus().publish(entry.getEventBusNotificationChannel(), true);
+
+                }
+
                 log.debug("Scheduling next update in " + REFRESH_INTERVAL_MILLIS + " milliseconds");
                 // scheduling this from within the timer enables us to create a window between updates,
                 // as opposed to using a periodic timer, where their could be overlaps depending on how
@@ -73,12 +77,13 @@ public class FileCacheVerticle extends Verticle {
         final EventBus bus = vertx.eventBus();
 
         // set the cache reference
-        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx().fileSystem(), BASE_DIRECTORY);
+        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx().fileSystem());
 
         /**
-         * Listen for requests on event bus on channel FILE_CACHE_CHANNEL
+         * Listen for "put" requests on event bus on channel FILE_CACHE_CHANNEL
          */
-        bus.registerHandler(FILE_CACHE_CHANNEL, new FileCacheRequestHandler(FILE_CACHE));
+        log.debug("Registering event bus listener on [" + FILE_CACHE_CHANNEL + "] to handle file put requests.");
+        bus.registerHandler(FILE_CACHE_CHANNEL, new FileCachePutRequestHandler(FILE_CACHE));
 
         /**
          * Kick off the updater.  The updater simply scans cache entries, and updates any entries

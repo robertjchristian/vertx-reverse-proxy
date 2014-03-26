@@ -13,27 +13,27 @@ import org.vertx.java.platform.Verticle;
  */
 public class BootstrapVerticle extends Verticle {
 
-	public void start() {
+    public void start() {
 
-		// deploy the file cache verticle first
+        // deploy the file cache verticle first
 
-		// TODO consider (1) load filecache conf, (2) deploy using file cache conf
+        // TODO consider (1) load filecache conf, (2) deploy using file cache conf
 
-		container.deployVerticle("com.mycompany.myproject.verticles.filecache.FileCacheVerticle", container.config(), new AsyncResultHandler<String>() {
-			@Override
-			public void handle(AsyncResult<String> event) {
-				deployAdditionalVerticles();
-			}
-		});
+        container.deployVerticle("com.mycompany.myproject.verticles.filecache.FileCacheVerticle", container.config(), new AsyncResultHandler<String>() {
+            @Override
+            public void handle(AsyncResult<String> event) {
+                deployAdditionalVerticles();
+            }
+        });
 
-	}
+    }
 
-	/**
-	 * The file cache verticle has been deployed at this point, so modules and verticles
-	 * deployed from here can rely on it...
-	 */
-	private void deployAdditionalVerticles() {
-		container.deployVerticle("com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle", container.config());
-	}
+    /**
+     * The file cache verticle has been deployed at this point, so modules and verticles
+     * deployed from here can rely on it...
+     */
+    private void deployAdditionalVerticles() {
+        container.deployVerticle("com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle", container.config());
+    }
 
 }

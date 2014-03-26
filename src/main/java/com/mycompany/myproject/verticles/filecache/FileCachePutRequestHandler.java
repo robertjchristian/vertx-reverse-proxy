@@ -14,26 +14,29 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
  *
  * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
  */
-public class FileCacheRequestHandler implements Handler<Message<String>> {
+public class FileCachePutRequestHandler implements Handler<Message<String>> {
 
     /**
      * Log
      */
-    private static final Logger log = LoggerFactory.getLogger(FileCacheRequestHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(FileCachePutRequestHandler.class);
 
     /**
      * File cache reference
      */
     private final FileCacheImpl fileCache;
 
-    public FileCacheRequestHandler(FileCacheImpl fileCache) {
+    public FileCachePutRequestHandler(FileCacheImpl fileCache) {
         this.fileCache = fileCache;
     }
 
     @Override
+    /**
+     * Handle put request
+     */
     public void handle(final Message<String> message) {
 
-        log.debug("FileCacheImpl received cache request on [" + message.address() + "] for [ " + message.body() + "]");
+        log.debug("FileCache received cache request on [" + message.address() + "] for [ " + message.body() + "]");
 
         final String path = message.body();
 
@@ -51,17 +54,21 @@ public class FileCacheRequestHandler implements Handler<Message<String>> {
          * HANDLE NO CACHE HIT  (first time)
          */
         // doesn't exist... call set, then return result
-        fileCache.putFile(path, new AsyncResultHandler<FileCacheEntry>() {
+        // don't notify, as initial set should use callback instead of eventbus
+        // however, set the update channel
+        fileCache.putFile(path, FileCacheVerticle.FILE_CACHE_CHANNEL + path
+                , new AsyncResultHandler<FileCacheEntry>() {
             @Override
             public void handle(AsyncResult<FileCacheEntry> event) {
                 // reply to message
                 if (event.succeeded()) {
                     message.reply(event.result().fileContents());
                 } else {
+                    log.error(event.cause());
                     // TODO consider centralizing error codes if another is needed...
                     message.fail(-1, "Failed to locate file at [" + path + "]");
-                }
 
+                }
             }
         });
 

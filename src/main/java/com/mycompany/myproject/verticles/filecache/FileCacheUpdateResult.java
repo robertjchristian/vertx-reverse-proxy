@@ -1,6 +1,8 @@
 package com.mycompany.myproject.verticles.filecache;
 
 import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.logging.Logger;
+import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -13,33 +15,43 @@ import java.util.Set;
  *
  * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
  */
-class FileCacheUpdateResult implements AsyncResult<Integer> {
+class FileCacheUpdateResult implements AsyncResult<Set<FileCacheEntry>> {
 
     /**
-     * Represents the total number of entries processed.  Note that
-     * this will contain errors in addition to successful updates.
+     * Log
      */
-    int result = 0;
+    private static final Logger log = LoggerFactory.getLogger(FileCacheUpdateResult.class);
+
 
     /**
      * Flag representing that the client has set its last pending file,
      * and that this event can be fired once pending pendingFiles list is reduced
      * to empty.  See isFinished() for additional context.
      */
-    boolean completedTaskAssignments = false;
+    private boolean completedTaskAssignments = false;
 
     /**
      * Cause used in event.  Be careful here, since in N update requests,
      * there could be M errors.  May be better to manage a map of failed
      * updates (key=path, value=error), but for now leaving this as null.
      */
-    Throwable cause = null;
+    private Throwable cause = null;
 
     /**
      * Flag for whether operation succeeded.  Client should update to true
      * if succeeded, just prior to firing event.
      */
-    boolean succeeded = false;
+    private boolean succeeded = false;
+
+    /**
+     * Contains a list of files that have been updated.
+     */
+    private Set<FileCacheEntry> updatedFilesList = new HashSet<FileCacheEntry>();
+
+    /**
+     * Contains a list of files that need update but fail.
+     */
+    private Set<FileCacheEntry> failedFilesList = new HashSet<FileCacheEntry>();
 
     /**
      * This is the set of pending files remaining to be processed.  The asynchronous handler
@@ -59,6 +71,7 @@ class FileCacheUpdateResult implements AsyncResult<Integer> {
      * Setters/Getters...
      */
 
+
     public boolean hasCompletedTaskAssignments() {
         return completedTaskAssignments;
     }
@@ -68,10 +81,19 @@ class FileCacheUpdateResult implements AsyncResult<Integer> {
     }
 
     public void addPendingFile(String file) {
-        // track total number of pendingFiles updated
-        this.result++;
-
         pendingFiles.add(file);
+    }
+
+    public void addUpdatedFile(FileCacheEntry file) {
+        updatedFilesList.add(file);
+    }
+
+    public void addFailedFile(FileCacheEntry file) {
+        failedFilesList.add(file);
+    }
+
+    public Set<FileCacheEntry> getFailedFiles() {
+        return failedFilesList;
     }
 
     public void removePendingFile(String file) {
@@ -104,8 +126,8 @@ class FileCacheUpdateResult implements AsyncResult<Integer> {
 
 
     @Override
-    public Integer result() {
-        return result;
+    public Set<FileCacheEntry> result() {
+        return updatedFilesList;
     }
 
 }

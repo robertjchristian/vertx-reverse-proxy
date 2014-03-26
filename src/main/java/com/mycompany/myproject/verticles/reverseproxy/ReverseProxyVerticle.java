@@ -1,6 +1,8 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import com.mycompany.myproject.verticles.filecache.FileMarshalUtil;
+import com.google.gson.Gson;
+import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.RewriteRule;
 import org.vertx.java.core.AsyncResult;
@@ -8,6 +10,7 @@ import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
+import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.*;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
@@ -26,28 +29,78 @@ import java.net.URL;
  */
 public class ReverseProxyVerticle extends Verticle {
 
+    /**
+     * Log
+     */
     private static final Logger log = LoggerFactory.getLogger(ReverseProxyVerticle.class);
 
-    // static cache of configuration
-    private ReverseProxyConfiguration config;
-
+    /**
+     * Configuration path
+     */
     public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
 
-    // TODO listen on event bus for update to CONFIG_PATH file, and re-read/reset config
-    // TODO make sure that event bus handler and http request handler are both handled
-    // TODO by same thread (that is the thread running this verticle)
+    /**
+     * Configuration parsed and hydrated
+     */
+    private ReverseProxyConfiguration config;
+
+
+
+    //
+    //
+    // TODO A) Isolate configuration loading and updating to a utility / base class
+    // TODO B) Ensure that the update response handler and http server are run by
+    // TODO    the same thread. (thereby avoiding a config change in the middle of
+    // TODO    processing an HTTP request)
+    // TODO C) Reuse dynamic vertical config updating for other verticles
+    //
+    //
+
+    protected static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
+        // TODO mind encoding
+        String fileAsString = new String(fileContents);
+
+        Gson g = new Gson();
+        T c = g.fromJson(fileAsString, clazz);
+        return c;
+    }
 
     /**
      * Entry point
      */
     public void start() {
 
-        // TODO:  Bootstrap load should be synch... (but runtime should remain asynch)
-        // TODO: listen for update on event bus, and update config appropriately
-        FileMarshalUtil.readConfig(vertx.eventBus(), log, ReverseProxyConfiguration.class, CONFIG_PATH, new AsyncResultHandler<ReverseProxyConfiguration>() {
+        FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
             @Override
-            public void handle(AsyncResult<ReverseProxyConfiguration> event) {
-                config = event.result();
+            public void handle(AsyncResult<byte[]> event) {
+
+                log.debug("Updating configuration based on change to [" + CONFIG_PATH + "].");
+
+                // set configuration
+                config = getConfig(ReverseProxyConfiguration.class, event.result());
+
+
+                // register update listener     (TODO isolate this code for readability)
+                String channel = FileCacheVerticle.FILE_CACHE_CHANNEL + CONFIG_PATH;
+                vertx.eventBus().registerHandler(channel, new Handler<Message<Boolean>> () {
+                    @Override
+                    public void handle (Message<Boolean> message){
+                        // update config
+                        log.info("Configuration file " + CONFIG_PATH + " has been updated in cache.  Re-fetching.");
+
+                        FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
+                            @Override
+                            public void handle(AsyncResult<byte[]> event) {
+
+                                // set configuration
+                                config = getConfig(ReverseProxyConfiguration.class, event.result());
+
+                            }
+                        });
+                    }
+                });
+
+                // start verticle
                 doStart();
             }
         });
@@ -184,7 +237,6 @@ public class ReverseProxyVerticle extends Verticle {
                         cReq.end();
                     }
                 });
-
 
 
             }
