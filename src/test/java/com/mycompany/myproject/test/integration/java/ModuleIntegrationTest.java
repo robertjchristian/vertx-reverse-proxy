@@ -16,6 +16,12 @@ package com.mycompany.myproject.test.integration.java;/*
 * @author <a href="http://tfox.org">Tim Fox</a>
 */
 
+import static org.vertx.testtools.VertxAssert.assertNotNull;
+import static org.vertx.testtools.VertxAssert.assertTrue;
+import static org.vertx.testtools.VertxAssert.testComplete;
+
+import java.io.UnsupportedEncodingException;
+
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -26,8 +32,6 @@ import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.testtools.TestVerticle;
-
-import static org.vertx.testtools.VertxAssert.*;
 
 /**
  * Example Java integration test that deploys the module that this project builds.
@@ -41,7 +45,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 	// TODO pick up config on the fly (changes currently require restart of verticle)
 
-	@Test
+	//@Test
 	public void testProxyServer() {
 
 		container.logger().info("Testing proxy server...");
@@ -89,7 +93,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 	}
 
 	@Test
-	public void testUserManagementServerAuth() {
+	public void testUserManagementServerAuth() throws UnsupportedEncodingException {
 		container.logger().info("Testing authentication in UserManagement server...");
 
 		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
@@ -109,8 +113,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 			}
 		});
-		// sample basic auth header
-		request.putHeader("Authorization", "Basic ZGVtb2ZvcmFjbEBsaWFpc29uLmRldjpVMjl1YW1GMllURXlNdz09");
+		request.putHeader("Authorization", "Basic anVuOmp1bjEyMw==");
 		request.end();
 	}
 
@@ -141,7 +144,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 		request.end();
 	}
 
-	@Test
+	//@Test
 	public void testAclServerGetManifest() {
 		container.logger().info("Testing getting manifest from Mock ACL server...");
 
@@ -162,7 +165,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 			}
 		});
-		String content = vertx.fileSystem().readFileSync("usermanagement/payload_sign_request.txt").toString();
+		String content = vertx.fileSystem().readFileSync("manifest_request.txt").toString();
 		request.setChunked(true);
 		request.write(content);
 		request.end();
@@ -184,8 +187,8 @@ public class ModuleIntegrationTest extends TestVerticle {
 		config.putString("keyStorePath", "../../../server-keystore.jks");
 		config.putString("keyStorePassword", "password");
 
-		container.deployVerticle("com.mycompany.myproject.mock.UserManagementVerticle");
-		container.deployVerticle("com.mycompany.myproject.mock.AclVerticle");
+		container.deployVerticle("com.mycompany.myproject.test.mock.UserManagementVerticle");
+		container.deployVerticle("com.mycompany.myproject.test.mock.AclVerticle");
 
 		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override

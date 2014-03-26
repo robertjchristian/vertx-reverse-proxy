@@ -70,6 +70,10 @@ dependencies {
     //provided "org.codehaus.groovy:groovy-all:$groovyVersion"
     //provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
 
+	
+	testCompile 'org.bouncycastle:bcmail-jdk15on:1.50'
+	testCompile 'org.bouncycastle:bcpg-jdk15on:1.50'
+	testCompile 'org.bouncycastle:bcprov-jdk15on:1.50'
 }
 
 test {

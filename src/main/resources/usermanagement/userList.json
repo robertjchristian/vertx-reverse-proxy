@@ -1,0 +1,7 @@
+{
+	"userList" : [{
+		"userId": "jun",
+		"password": "jun123",
+		"authenticationToken": "abcdefg"
+	}]
+}
