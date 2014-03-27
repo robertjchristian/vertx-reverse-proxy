@@ -1,0 +1,37 @@
+<html id="body">
+	<head>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				$('#loginForm').submit(function() {
+					var username = $('#userId').val();
+					var password = $('#password').val();
+					
+					$.ajax({
+						headers: {
+							"Authorization": 'Basic ' + btoa(username + ":" + password)
+						},
+						url : 'https://localhost:8989/auth',
+						type : 'GET',
+						success : function(data) { document.getElementById("body").innerHTML = data },
+						error : function(data) { document.getElementById("body").innerHTML = data.responseText },
+					});
+					
+					return false;
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<form id="loginForm" method="post">
+			<p>
+			<label for="userIdLabel">User ID: </label>
+			<input type="text" id="userId"><br>
+			<label for="passowrdLabel">Password: </label>
+			<input type="password" id="password"><br>
+			<input type="submit" value="Send"> 
+			<input type="reset">
+			</p>
+		</form>
+	</body>
+</html>

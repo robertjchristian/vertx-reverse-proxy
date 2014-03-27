@@ -1,4 +1,4 @@
-package com.mycompany.myproject.test.mock.usermanagement.model;
+package com.mycompany.myproject.verticles.reverseproxy.model;
 
 public class AuthenticationResponse {
 

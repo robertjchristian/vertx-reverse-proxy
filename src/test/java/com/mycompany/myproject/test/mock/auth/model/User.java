@@ -1,4 +1,4 @@
-package com.mycompany.myproject.test.mock.usermanagement.model;
+package com.mycompany.myproject.test.mock.auth.model;
 
 public class User {
 

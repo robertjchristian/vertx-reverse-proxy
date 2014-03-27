@@ -20,9 +20,6 @@ import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
-import java.io.UnsupportedEncodingException;
-
-import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -49,13 +46,6 @@ public class ModuleIntegrationTest extends TestVerticle {
 	public void testProxyServer() {
 
 		container.logger().info("Testing proxy server...");
-
-		try {
-			Thread.sleep(5000);
-		}
-		catch (InterruptedException e) {
-			// do nothing
-		}
 
 		// create ssl client. trust all for testing purpose
 		final HttpClient client = vertx.createHttpClient()
@@ -92,85 +82,6 @@ public class ModuleIntegrationTest extends TestVerticle {
 		request.end();
 	}
 
-	@Test
-	public void testUserManagementServerAuth() throws UnsupportedEncodingException {
-		container.logger().info("Testing authentication in UserManagement server...");
-
-		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
-
-		HttpClientRequest request = client.post("/authenticate", new Handler<HttpClientResponse>() {
-			public void handle(final HttpClientResponse resp) {
-
-				resp.bodyHandler(new Handler<Buffer>() {
-					public void handle(Buffer body) {
-
-						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
-						client.close();
-						testComplete();
-
-					}
-				});
-
-			}
-		});
-		request.putHeader("Authorization", "Basic anVuOmp1bjEyMw==");
-		request.end();
-	}
-
-	@Test
-	public void testUserManagementServerSign() {
-		container.logger().info("Testing signing in UserManagement server...");
-
-		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
-
-		HttpClientRequest request = client.post("/sign", new Handler<HttpClientResponse>() {
-			public void handle(final HttpClientResponse resp) {
-
-				resp.bodyHandler(new Handler<Buffer>() {
-					public void handle(Buffer body) {
-
-						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
-						client.close();
-						testComplete();
-
-					}
-				});
-
-			}
-		});
-		String content = vertx.fileSystem().readFileSync("usermanagement/payload_sign_request.txt").toString();
-		request.setChunked(true);
-		request.write(content);
-		request.end();
-	}
-
-	//@Test
-	public void testAclServerGetManifest() {
-		container.logger().info("Testing getting manifest from Mock ACL server...");
-
-		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9001).setConnectTimeout(5);
-
-		HttpClientRequest request = client.post("/verifyAndGetManifest", new Handler<HttpClientResponse>() {
-			public void handle(final HttpClientResponse resp) {
-
-				resp.bodyHandler(new Handler<Buffer>() {
-					public void handle(Buffer body) {
-
-						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
-						client.close();
-						testComplete();
-
-					}
-				});
-
-			}
-		});
-		String content = vertx.fileSystem().readFileSync("manifest_request.txt").toString();
-		request.setChunked(true);
-		request.write(content);
-		request.end();
-	}
-
 	@Override
 	public void start() {
 
@@ -186,9 +97,6 @@ public class ModuleIntegrationTest extends TestVerticle {
 		config.putString("configFilePath", "../../../conf.json");
 		config.putString("keyStorePath", "../../../server-keystore.jks");
 		config.putString("keyStorePassword", "password");
-
-		container.deployVerticle("com.mycompany.myproject.test.mock.UserManagementVerticle");
-		container.deployVerticle("com.mycompany.myproject.test.mock.AclVerticle");
 
 		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override

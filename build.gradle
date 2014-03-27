@@ -81,7 +81,13 @@ test {
     include 'org/foo/**'
     exclude 'org/boo/**'
     */
+	exclude 'com/mycompany/myproject/test/mock/MockServerTest*'
 
+}
+
+task runMockServers(type: Test) {
+	testLogging.showStandardStreams = true
+	include 'com/mycompany/myproject/test/mock/MockServerTest*'
 }
 
 /*
