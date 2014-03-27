@@ -1,0 +1,42 @@
+<html id="body">
+	<head>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				$('#loginForm').submit(function() {
+					var username = $('#userId').val();
+					var password = $('#password').val();
+					var destination = $('#destination').val();
+					
+					var split = document.URL.split("auth/");
+					
+					$.ajax({
+						headers: {
+							"Authorization": 'Basic ' + btoa(username + ":" + password)
+						},
+						url : 'https://localhost:8989/' + (split.length === 2 ? split[1] : destination),
+						type : 'GET',
+						success : function(data) { document.getElementById("body").innerHTML = data.responseText },
+						error : function(data) { document.getElementById("body").innerHTML = data.responseText },
+					});
+					
+					return false;
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<form id="loginForm" method="post">
+			<p>
+			<label for="userIdLabel">User ID: </label>
+			<input type="text" id="userId"><br>
+			<label for="passowrdLabel">Password: </label>
+			<input type="password" id="password"><br>
+			<label for="destinationLabel">Destination: </label>
+			<input type="text" id="destination"><br>
+			<input type="submit" value="Send"> 
+			<input type="reset">
+			</p>
+		</form>
+	</body>
+</html>

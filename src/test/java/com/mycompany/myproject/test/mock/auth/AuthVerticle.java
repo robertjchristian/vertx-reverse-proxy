@@ -1,4 +1,4 @@
-package com.mycompany.myproject.test.mock;
+package com.mycompany.myproject.test.mock.auth;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -29,14 +29,14 @@ import org.vertx.java.platform.Verticle;
 
 import com.google.gson.Gson;
 import com.liaison.commons.security.pkcs7.signandverify.DigitalSignature;
-import com.mycompany.myproject.test.mock.usermanagement.model.AuthenticationResponse;
-import com.mycompany.myproject.test.mock.usermanagement.model.Response;
-import com.mycompany.myproject.test.mock.usermanagement.model.User;
-import com.mycompany.myproject.test.mock.usermanagement.model.UserList;
+import com.mycompany.myproject.test.mock.auth.model.AuthenticationResponse;
+import com.mycompany.myproject.test.mock.auth.model.Response;
+import com.mycompany.myproject.test.mock.auth.model.User;
+import com.mycompany.myproject.test.mock.auth.model.UserList;
 
-public class UserManagementVerticle extends Verticle {
+public class AuthVerticle extends Verticle {
 
-	private static final Logger log = LoggerFactory.getLogger(UserManagementVerticle.class);
+	private static final Logger log = LoggerFactory.getLogger(AuthVerticle.class);
 
 	private void constructResponse(final HttpServerRequest req, String message, String authentication, String authenticationToken, Date sessionDate) {
 		Gson gson = new Gson();
@@ -58,7 +58,7 @@ public class UserManagementVerticle extends Verticle {
 
 	public void start() {
 
-		String rawUserList = vertx.fileSystem().readFileSync("usermanagement/userList.json").toString();
+		String rawUserList = vertx.fileSystem().readFileSync("auth/userList.json").toString();
 		Gson gson = new Gson();
 		final UserList userList = gson.fromJson(rawUserList, UserList.class);
 
@@ -109,8 +109,8 @@ public class UserManagementVerticle extends Verticle {
 				Security.addProvider(new BouncyCastleProvider());
 
 				try {
-					final X509Certificate cert = readCertificate(vertx.fileSystem().readFileSync("usermanagement/key/proxy.p7b"));
-					final PrivateKey privateKey = readPrivateKey(vertx.fileSystem().readFileSync("usermanagement/key/proxy_test_key"));
+					final X509Certificate cert = readCertificate(vertx.fileSystem().readFileSync("auth/key/proxy.p7b"));
+					final PrivateKey privateKey = readPrivateKey(vertx.fileSystem().readFileSync("auth/key/proxy_test_key"));
 
 					req.dataHandler(new Handler<Buffer>() {
 

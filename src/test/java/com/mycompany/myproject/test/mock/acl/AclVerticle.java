@@ -1,4 +1,4 @@
-package com.mycompany.myproject.test.mock;
+package com.mycompany.myproject.test.mock.acl;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;

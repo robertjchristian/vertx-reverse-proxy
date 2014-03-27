@@ -84,6 +84,11 @@ test {
 
 }
 
+task runMockServers(type: Test) {
+	testLogging.showStandardStreams = true
+	include 'com/mycompany/myproject/test/mock/MockServerTest*'
+}
+
 /*
 If you're uploading stuff to Maven, Gradle needs to generate a POM.
 Please edit the details below.
