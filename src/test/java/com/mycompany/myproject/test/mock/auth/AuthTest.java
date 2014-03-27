@@ -20,7 +20,7 @@ public class AuthTest extends TestVerticle {
 
 	@Test
 	public void testUserManagementServerAuth() throws UnsupportedEncodingException {
-		container.logger().info("Testing authentication in UserManagement server...");
+		container.logger().info("Testing authentication in Auth server...");
 
 		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
 
@@ -39,13 +39,14 @@ public class AuthTest extends TestVerticle {
 
 			}
 		});
-		request.putHeader("Authorization", "Basic anVuOmp1bjEyMw==");
-		request.end();
+		request.setChunked(true);
+		request.write(vertx.fileSystem().readFileSync("auth/auth_request.json"));
+		request.end();	
 	}
 
 	@Test
 	public void testUserManagementServerSign() {
-		container.logger().info("Testing signing in UserManagement server...");
+		container.logger().info("Testing signing in Auth server...");
 
 		final HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000).setConnectTimeout(5);
 
@@ -64,9 +65,8 @@ public class AuthTest extends TestVerticle {
 
 			}
 		});
-		String content = vertx.fileSystem().readFileSync("auth/payload_sign_request.txt").toString();
 		request.setChunked(true);
-		request.write(content);
+		request.write(vertx.fileSystem().readFileSync("auth/payload_sign_request.txt"));
 		request.end();
 	}
 

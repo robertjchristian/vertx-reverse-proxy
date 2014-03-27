@@ -48,13 +48,6 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 		container.logger().info("Testing proxy server...");
 
-		try {
-			Thread.sleep(5000);
-		}
-		catch (InterruptedException e) {
-			// do nothing
-		}
-
 		// create ssl client. trust all for testing purpose
 		final HttpClient client = vertx.createHttpClient()
 				.setSSL(true)

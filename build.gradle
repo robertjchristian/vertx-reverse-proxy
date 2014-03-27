@@ -81,6 +81,7 @@ test {
     include 'org/foo/**'
     exclude 'org/boo/**'
     */
+	exclude 'com/mycompany/myproject/test/mock/MockServerTest*'
 
 }
 

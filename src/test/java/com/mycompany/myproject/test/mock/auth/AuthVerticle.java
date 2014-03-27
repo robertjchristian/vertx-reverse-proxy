@@ -73,7 +73,6 @@ public class AuthVerticle extends Verticle {
 					@Override
 					public void handle(Buffer buffer) {
 						final AuthenticateRequest request = new Gson().fromJson(buffer.toString(), AuthenticateRequest.class);
-
 						if (request != null) {
 							for (AuthRequest authRequest : request.getAuthentication().getAuthRequestList()) {
 								boolean found = false;
@@ -100,7 +99,6 @@ public class AuthVerticle extends Verticle {
 						}
 					}
 				});
-
 			}
 		});
 
