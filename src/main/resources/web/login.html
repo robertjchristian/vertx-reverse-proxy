@@ -6,17 +6,14 @@
 				$('#loginForm').submit(function() {
 					var username = $('#userId').val();
 					var password = $('#password').val();
-					var destination = $('#destination').val();
-					
-					var split = document.URL.split("auth/");
 					
 					$.ajax({
 						headers: {
 							"Authorization": 'Basic ' + btoa(username + ":" + password)
 						},
-						url : 'https://localhost:8989/' + (split.length === 2 ? split[1] : destination),
+						url : 'https://localhost:8989/auth',
 						type : 'GET',
-						success : function(data) { document.getElementById("body").innerHTML = data.responseText },
+						success : function(data) { document.getElementById("body").innerHTML = data },
 						error : function(data) { document.getElementById("body").innerHTML = data.responseText },
 					});
 					
@@ -32,8 +29,6 @@
 			<input type="text" id="userId"><br>
 			<label for="passowrdLabel">Password: </label>
 			<input type="password" id="password"><br>
-			<label for="destinationLabel">Destination: </label>
-			<input type="text" id="destination"><br>
 			<input type="submit" value="Send"> 
 			<input type="reset">
 			</p>

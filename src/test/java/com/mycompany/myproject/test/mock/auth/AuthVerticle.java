@@ -22,17 +22,18 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.http.RouteMatcher;
-import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
 import com.google.gson.Gson;
 import com.liaison.commons.security.pkcs7.signandverify.DigitalSignature;
-import com.mycompany.myproject.test.mock.auth.model.AuthenticationResponse;
-import com.mycompany.myproject.test.mock.auth.model.Response;
 import com.mycompany.myproject.test.mock.auth.model.User;
 import com.mycompany.myproject.test.mock.auth.model.UserList;
+import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
+import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
+import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
+import com.mycompany.myproject.verticles.reverseproxy.model.Response;
 
 public class AuthVerticle extends Verticle {
 
@@ -67,37 +68,38 @@ public class AuthVerticle extends Verticle {
 			@Override
 			public void handle(final HttpServerRequest req) {
 
-				//TODO move this to ReverseProxyVerticle
-				String authInfo = req.headers().get("Authorization");
-				String parsedAuthInfo = authInfo.replace("Basic", "").trim();
-				String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
-				String[] auth = decodedAuthInfo.split(":");
+				req.dataHandler(new Handler<Buffer>() {
 
-				if (auth != null && auth.length == 2) {
-					boolean found = false;
-					for (User user : userList.getUserList()) {
-						if (user.getUserId().equals(auth[0])) {
-							found = true;
-							if (user.getPassword().equals(auth[1])) {
-								constructResponse(req, "Account authenticated successfully.", "success", user.getAuthenticationToken(), new Date());
+					@Override
+					public void handle(Buffer buffer) {
+						final AuthenticateRequest request = new Gson().fromJson(buffer.toString(), AuthenticateRequest.class);
+
+						if (request != null) {
+							for (AuthRequest authRequest : request.getAuthentication().getAuthRequestList()) {
+								boolean found = false;
+								for (User user : userList.getUserList()) {
+									if (user.getUserId().equals(authRequest.getLoginId())) {
+										found = true;
+										if (user.getPassword().equals(authRequest.getToken())) {
+											constructResponse(req, "Account authenticated successfully.", "success", user.getAuthenticationToken(), new Date());
+										}
+										else {
+											constructResponse(req,
+													"Account authentication failed.The client passed either an incorrect DN or password, or the password is incorrect because it has expired, intruder detection has locked the account, or another similar reason.",
+													"failure",
+													null,
+													null);
+										}
+										break;
+									}
+								}
+								if (!found) {
+									constructResponse(req, "Account authentication failed.No USER ACCOUNT available in the system.", "failure", null, null);
+								}
 							}
-							else {
-								constructResponse(req,
-										"Account authentication failed.The client passed either an incorrect DN or password, or the password is incorrect because it has expired, intruder detection has locked the account, or another similar reason.",
-										"failure",
-										null,
-										null);
-							}
-							break;
 						}
 					}
-					if (!found) {
-						constructResponse(req, "Account authentication failed.No USER ACCOUNT available in the system.", "failure", null, null);
-					}
-				}
-				else {
-					constructResponse(req, "Account authentication failed.No USER ACCOUNT available in the system.", "failure", null, null);
-				}
+				});
 
 			}
 		});
