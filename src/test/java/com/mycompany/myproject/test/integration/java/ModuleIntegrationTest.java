@@ -20,6 +20,7 @@ import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
+import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -42,7 +43,7 @@ public class ModuleIntegrationTest extends TestVerticle {
 
 	// TODO pick up config on the fly (changes currently require restart of verticle)
 
-	//@Test
+	@Test
 	public void testProxyServer() {
 
 		container.logger().info("Testing proxy server...");

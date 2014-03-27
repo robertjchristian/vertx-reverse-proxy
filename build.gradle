@@ -82,6 +82,7 @@ test {
     exclude 'org/boo/**'
     */
 	exclude 'com/mycompany/myproject/test/mock/MockServerTest*'
+	exclude 'com/mycompany/myproject/test/integration/java/ModuleIntegrationTest*'
 
 }
 
