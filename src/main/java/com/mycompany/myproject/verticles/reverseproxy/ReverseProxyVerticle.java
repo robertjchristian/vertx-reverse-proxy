@@ -54,7 +54,6 @@ public class ReverseProxyVerticle extends Verticle {
 	 */
 	private ReverseProxyConfiguration config;
 
-
 	//
 	//
 	// TODO A) Isolate configuration loading and updating to a utility / base class
@@ -118,248 +117,29 @@ public class ReverseProxyVerticle extends Verticle {
 	// called after initial filecache
 	public void doStart() {
 
+        // TODO lost ability to update dynamically... these handlers are constructed
+        // once, during verticle deploy, and config is not updated
+
+
 		RouteMatcher routeMatcher = new RouteMatcher();
-		routeMatcher.get("/auth", new Handler<HttpServerRequest>() {
 
-			@Override
-			public void handle(final HttpServerRequest req) {
+        /**
+         * Handle requests for authentication
+         */
+		routeMatcher.get("/auth", new AuthHandler(vertx, config));
 
-				String authInfo = req.headers().get("Authorization");
-				String parsedAuthInfo = authInfo.replace("Basic", "").trim();
-				String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
-				String[] auth = decodedAuthInfo.split(":");
+        /**
+         * Handle requests for assets
+         */
+        for (String asset : config.assets) {
+            String pattern = "/." + asset;
+            routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, false));
+        }
 
-				if (auth != null && auth.length == 2) {
-					AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", auth[0], auth[1]);
-					AuthenticateRequest request = new AuthenticateRequest();
-					request.getAuthentication().getAuthRequestList().add(authRequest);
-					String authRequestStr = new Gson().toJson(request);
-
-					HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000);
-					final HttpClientRequest cReq = client.request("POST", "/authenticate", new Handler<HttpClientResponse>() {
-
-						@Override
-						public void handle(HttpClientResponse cRes) {
-							req.response().setStatusCode(cRes.statusCode());
-							req.response().headers().set(cRes.headers());
-
-							req.response().setChunked(true);
-
-							cRes.dataHandler(new Handler<Buffer>() {
-								public void handle(Buffer data) {
-									AuthenticationResponse authResponse = new Gson().fromJson(data.toString(), AuthenticationResponse.class);
-									if (authResponse != null) {
-										if (authResponse.getResponse().getAuthentication().equals("success")) {
-											req.response()
-													.headers()
-													.add("Set-Cookie", String.format("session-token=%s", authResponse.getResponse().getAuthenticationToken()));
-											req.response().write("you've reached the front page of g2 and you are authorized...");
-										}
-										else {
-											req.response().write(authResponse.getResponse().getMessage());
-										}
-									}
-								}
-							});
-							cRes.endHandler(new VoidHandler() {
-								public void handle() {
-									req.response().end();
-								}
-							});
-						}
-					});
-
-					cReq.setChunked(true);
-					cReq.write(authRequestStr);
-					cReq.end();
-				}
-				else {
-					req.response().setStatusCode(403);
-					req.response().setChunked(true);
-					req.response().write("incomplete basic auth header received.");
-					req.response().end();
-				}
-			}
-		});
-
-		routeMatcher.all("/.*", new Handler<HttpServerRequest>() {
-
-			@Override
-			public void handle(final HttpServerRequest req) {
-
-				/**
-				 * PARSE REQUEST
-				 */
-				log.info("Handling incoming proxy request:  " + req.method() + " " + req.uri());
-				log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
-
-				if (config == null) {
-					log.error("No config found.");
-					sendFailure(req, "Internal Error");
-					return;
-				}
-
-				// get rewrite rules as POJO
-				if (config.rewriteRules == null) {
-					log.error("No rewrite rules found.");
-					sendFailure(req, "Internal Error");
-					return;
-				}
-
-				// req as uri
-				URI reqURI = null;
-				try {
-					reqURI = new URI(req.uri());
-				}
-				catch (URISyntaxException e) {
-					sendFailure(req, "Bad URI: " + req.uri());
-					return;
-				}
-
-				/**
-				 * CHECK FOR SESSION TOKEN
-				 */
-				String sessionToken = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
-				if (sessionToken == null || sessionToken.isEmpty()) {
-
-					log.info("session token not found. redirecting to login page");
-
-					/*
-					String encoded;
-					try {
-						RawHttpRequest request = new RawHttpRequest(req);
-						String originalRequest = new Gson().toJson(request);
-						encoded = Base64.encodeBytes(originalRequest.getBytes("UTF-8"));
-					}
-					catch (UnsupportedEncodingException e) {
-						encoded = "";
-					}
-					req.response().headers().add("Cookie", encoded);
-					*/
-
-					req.endHandler(new VoidHandler() {
-
-						@Override
-						protected void handle() {
-
-							// return login page
-							FileCacheUtil.readFile(vertx.eventBus(), log, "../../../src/main/resources/web/login.html", new AsyncResultHandler<byte[]>() {
-
-								@Override
-								public void handle(AsyncResult<byte[]> event) {
-									req.response().setChunked(true);
-									req.response().setStatusCode(200);
-									req.response().write(new String(event.result()));
-									req.response().end();
-								}
-							});
-						}
-					});
-				}
-				else {
-
-					/**
-					 * ATTEMPT TO PARSE TARGET TOKEN FROM URL
-					 */
-
-					String uriPath = reqURI.getPath().toString();
-
-
-					String[] path = uriPath.split("/");
-					if (path.length < 2) {
-						sendFailure(req, "Expected first node in URI path to be rewrite token.");
-						return;
-					}
-					String rewriteToken = path[1];
-					log.debug("Rewrite token --> " + rewriteToken);
-
-					/**
-					 * LOOKUP REWRITE RULE FROM TARGET TOKEN
-					 */
-					RewriteRule r = config.rewriteRules.get(rewriteToken);
-					if (r == null) {
-						sendFailure(req, "Couldn't find rewrite rule for '" + rewriteToken + "'");
-						return;
-					}
-
-					/**
-					 * PARSE TARGET PATH FROM URL
-					 */
-					String targetPath = uriPath.substring(rewriteToken.length() + 1);
-					log.debug("Target path --> " + targetPath);
-
-					/**
-					 * BUILD TARGET URL
-					 */
-					String queryString = reqURI.getQuery();
-					String spec = r.getProtocol() + "://" + r.getHost() + ":" + r.getPort() + targetPath;
-					spec = queryString != null ? spec + "?" + queryString : spec;
-					log.debug("Constructing target URL from --> " + spec);
-					URL targetURL = null;
-					try {
-						targetURL = new URL(spec);
-					}
-					catch (MalformedURLException e) {
-						sendFailure(req, "Failed to construct URL from " + spec);
-						return;
-					}
-
-					log.info("Target URL --> " + targetURL.toString());
-
-					/**
-					 * BEGIN REVERSE PROXYING
-					 */
-
-					final HttpClient client = vertx.createHttpClient();
-
-					log.debug("Setting host --> " + targetURL.getHost());
-					client.setHost(targetURL.getHost());
-
-					log.debug("Setting port --> " + targetURL.getPort());
-					client.setPort(targetURL.getPort());
-
-					if (r.getProtocol().equalsIgnoreCase("https")) {
-						log.debug("creating https client");
-						client.setSSL(true).setTrustStorePath(config.ssl.trustStorePath).setTrustStorePassword(config.ssl.trustStorePassword);
-					}
-
-					final HttpClientRequest cReq = client.request(req.method(), targetURL.getPath().toString(), new Handler<HttpClientResponse>() {
-						public void handle(HttpClientResponse cRes) {
-
-							req.response().setStatusCode(cRes.statusCode());
-							req.response().headers().set(cRes.headers());
-
-							req.response().setChunked(true);
-							cRes.dataHandler(new Handler<Buffer>() {
-								public void handle(Buffer data) {
-									req.response().write(data);
-								}
-							});
-							cRes.endHandler(new VoidHandler() {
-								public void handle() {
-									req.response().end();
-								}
-							});
-						}
-					});
-
-					cReq.headers().set(req.headers());
-					cReq.setChunked(true);
-					req.dataHandler(new Handler<Buffer>() {
-						public void handle(Buffer data) {
-							cReq.write(data);
-						}
-					});
-					req.endHandler(new VoidHandler() {
-						public void handle() {
-							cReq.end();
-						}
-					});
-
-				}
-			}
-
-		});
+        /**
+         * Handle all other requests
+         */
+		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, true));
 
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
@@ -370,13 +150,6 @@ public class ReverseProxyVerticle extends Verticle {
 		httpsServer.listen(config.ssl.proxyHttpsPort);
 	}
 
-	private void sendFailure(HttpServerRequest req, String msg) {
-		log.error(msg);
-		req.response().setStatusCode(500);
-		req.response().setStatusMessage("Internal Server Error");
-		req.response().setChunked(true);
-		req.response().write(msg);
-		req.response().end();
-	}
+
 
 }
