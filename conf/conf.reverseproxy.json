@@ -6,6 +6,7 @@
         "keyStorePassword": "password",
         "proxyHttpsPort": 8989
     },
+    "assets":["ico, png, jpg, jpeg, gif, css, js, txt"],
     "rewriteRules": {
         "sn": {
             "protocol": "http",
@@ -28,4 +29,5 @@
             "port": 9000
         }
     }
+
 }

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Configuration
@@ -12,11 +13,16 @@ import java.util.Map;
  */
 public class ReverseProxyConfiguration {
 
-    // TODO encapsulate
+
     public SSL ssl;  // TODO split into client and server (client should be able to change truststore location/pass dynamically)
     public Map<String, RewriteRule> rewriteRules;
+    public String[] assets;
 
     public ReverseProxyConfiguration() {
+
+        // "assets" may be accessed without authentication/acl
+        assets = new String[] {"ico, png, jpg, jpeg, gif, css, js, txt"};
+
         ssl = new SSL();
 
         // ssl (as client)
