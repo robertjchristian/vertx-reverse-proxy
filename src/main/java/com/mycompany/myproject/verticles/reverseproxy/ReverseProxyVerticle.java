@@ -4,6 +4,10 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -222,41 +226,96 @@ public class ReverseProxyVerticle extends Verticle {
 				String sessionToken = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
 				if (sessionToken == null || sessionToken.isEmpty()) {
 
-					log.info("session token not found. redirecting to login page");
+					log.info("session token not found.");
 
-					/*
-					String encoded;
-					try {
-						RawHttpRequest request = new RawHttpRequest(req);
-						String originalRequest = new Gson().toJson(request);
-						encoded = Base64.encodeBytes(originalRequest.getBytes("UTF-8"));
+					/**
+					 * CHECK FOR BASIC AUTH HEADER IF SESSION TOKEN DOES NOT EXIST
+					 */
+					String basicAuthHeader = req.headers().get("Authorization");
+					if (basicAuthHeader != null && !basicAuthHeader.isEmpty()) {
+						log.info("basic auth header found.");
+
+						HttpClient client = vertx.createHttpClient();
+						// TODO use cert..? instead of trusting all
+						client.setHost("localhost").setPort(config.ssl.proxyHttpsPort).setSSL(true).setTrustAll(true);
+						final HttpClientRequest cReq = client.get("/auth", new Handler<HttpClientResponse>() {
+
+							@Override
+							public void handle(HttpClientResponse cRes) {
+								req.response().setStatusCode(cRes.statusCode());
+								req.response().headers().set(cRes.headers());
+								req.response().setChunked(true);
+								cRes.dataHandler(new Handler<Buffer>() {
+									public void handle(Buffer data) {
+										req.response().write(data);
+									}
+								});
+								cRes.endHandler(new VoidHandler() {
+									public void handle() {
+										req.response().end();
+									}
+								});
+							}
+						});
+
+						cReq.headers().set(req.headers());
+						cReq.setChunked(true);
+						req.endHandler(new VoidHandler() {
+							public void handle() {
+								cReq.end();
+							}
+						});
 					}
-					catch (UnsupportedEncodingException e) {
-						encoded = "";
+					else {
+						log.info("basic auth header not found. redirecting to login page");
+
+						req.endHandler(new VoidHandler() {
+
+							@Override
+							protected void handle() {
+
+								// return login page
+								FileCacheUtil.readFile(vertx.eventBus(), log, "../../../src/main/resources/web/login.html", new AsyncResultHandler<byte[]>() {
+
+									@Override
+									public void handle(AsyncResult<byte[]> event) {
+										try {
+											// remove existing original-request cookie
+											String originalRequestCookie = ReverseProxyUtil.getCookieValue(req.headers(), "original-request");
+											if (originalRequestCookie != null) {
+												log.info("original-request cookie found. removing existing cookie");
+												DateFormat df = new SimpleDateFormat("EEE, MMM dd yyyy hh:mm:ss zzz");
+												// set to GMT
+												df.setTimeZone(TimeZone.getTimeZone(""));
+												req.response()
+														.headers()
+														.add("Set-Cookie", String.format("original-request=; expires=%s", df.format(new Date(0))));
+											}
+
+											// preserve original request uri for GET request
+											if (req.method().equals("GET")) {
+												req.response()
+														.headers()
+														.add("Set-Cookie",
+																String.format("original-request=%s",
+																		Base64.encodeBytes(req.absoluteURI().toString().getBytes("UTF-8"))));
+											}
+											req.response().setChunked(true);
+											req.response().setStatusCode(200);
+											req.response().write(new String(event.result()));
+											req.response().end();
+										}
+										catch (Exception e) {
+											sendFailure(req, e.getMessage());
+										}
+									}
+								});
+							}
+						});
 					}
-					req.response().headers().add("Cookie", encoded);
-					*/
-
-					req.endHandler(new VoidHandler() {
-
-						@Override
-						protected void handle() {
-
-							// return login page
-							FileCacheUtil.readFile(vertx.eventBus(), log, "../../../src/main/resources/web/login.html", new AsyncResultHandler<byte[]>() {
-
-								@Override
-								public void handle(AsyncResult<byte[]> event) {
-									req.response().setChunked(true);
-									req.response().setStatusCode(200);
-									req.response().write(new String(event.result()));
-									req.response().end();
-								}
-							});
-						}
-					});
 				}
 				else {
+					log.info(String.format("session token found. %s", sessionToken));
 
 					/**
 					 * ATTEMPT TO PARSE TARGET TOKEN FROM URL
