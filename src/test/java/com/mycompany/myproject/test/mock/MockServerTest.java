@@ -21,6 +21,9 @@ public class MockServerTest extends TestVerticle {
 	@Override
 	public void start() {
 
+		System.setProperty("vertx.test.timeout", "3600");
+		container.logger().info(System.getProperty("vertx.test.timeout"));
+
 		// Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
 		initialize();
 
@@ -44,8 +47,21 @@ public class MockServerTest extends TestVerticle {
 						assertTrue(aclResult.succeeded());
 						assertNotNull("deploymentID should not be null", aclResult.result());
 
-						// If deployed correctly then start the tests!
-						startTests();
+						container.deployVerticle("com.mycompany.myproject.test.mock.engine.EngineVerticle", new AsyncResultHandler<String>() {
+							@Override
+							public void handle(AsyncResult<String> aclResult) {
+
+								// Deployment is asynchronous and this this handler will be called when it's complete (or failed)
+								if (aclResult.failed()) {
+									container.logger().error(aclResult.cause());
+								}
+								assertTrue(aclResult.succeeded());
+								assertNotNull("deploymentID should not be null", aclResult.result());
+
+								// If deployed correctly then start the tests!
+								startTests();
+							}
+						});
 					}
 				});
 			}

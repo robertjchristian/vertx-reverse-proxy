@@ -27,6 +27,7 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.liaison.commons.security.pkcs7.signandverify.DigitalSignature;
 import com.mycompany.myproject.test.mock.auth.model.User;
 import com.mycompany.myproject.test.mock.auth.model.UserList;
@@ -40,11 +41,10 @@ public class AuthVerticle extends Verticle {
 	private static final Logger log = LoggerFactory.getLogger(AuthVerticle.class);
 
 	private void constructResponse(final HttpServerRequest req, String message, String authentication, String authenticationToken, Date sessionDate) {
-		Gson gson = new Gson();
+		Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
 		Response response = new Response(message, "success", authentication, authenticationToken, sessionDate);
 		AuthenticationResponse authResponse = new AuthenticationResponse(response);
-
 		String responseString = gson.toJson(authResponse);
 
 		setResponse(req, 200, responseString);
@@ -59,14 +59,15 @@ public class AuthVerticle extends Verticle {
 
 	public void start() {
 
-		String rawUserList = vertx.fileSystem().readFileSync("auth/userList.json").toString();
-		Gson gson = new Gson();
-		final UserList userList = gson.fromJson(rawUserList, UserList.class);
 
 		RouteMatcher routeMatcher = new RouteMatcher();
 		routeMatcher.post("/authenticate", new Handler<HttpServerRequest>() {
 			@Override
 			public void handle(final HttpServerRequest req) {
+
+				String rawUserList = vertx.fileSystem().readFileSync("auth/userList.json").toString();
+				final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
+				final UserList userList = gson.fromJson(rawUserList, UserList.class);
 
 				req.dataHandler(new Handler<Buffer>() {
 
@@ -74,26 +75,59 @@ public class AuthVerticle extends Verticle {
 					public void handle(Buffer buffer) {
 						final AuthenticateRequest request = new Gson().fromJson(buffer.toString(), AuthenticateRequest.class);
 						if (request != null) {
-							for (AuthRequest authRequest : request.getAuthentication().getAuthRequestList()) {
+							if (request.getAuthenticationToken() != null && !request.getAuthenticationToken().isEmpty()) {
+								log.info("Authentication Token received");
+
 								boolean found = false;
 								for (User user : userList.getUserList()) {
-									if (user.getUserId().equals(authRequest.getLoginId())) {
+									if (user.getAuthenticationToken().equals(request.getAuthenticationToken())) {
 										found = true;
-										if (user.getPassword().equals(authRequest.getToken())) {
-											constructResponse(req, "Account authenticated successfully.", "success", user.getAuthenticationToken(), new Date());
-										}
-										else {
-											constructResponse(req,
-													"Account authentication failed.The client passed either an incorrect DN or password, or the password is incorrect because it has expired, intruder detection has locked the account, or another similar reason.",
-													"failure",
-													null,
-													null);
-										}
-										break;
+										/*
+										// assign new auth token
+										String newAuthToken = UUID.randomUUID().toString();
+										user.setAuthenticationToken(newAuthToken);
+										String newUserList = gson.toJson(userList);
+										vertx.fileSystem().writeFileSync("auth/userList.json", new Buffer(newUserList));*/
+										constructResponse(req, "Account authenticated successfully.", "success", user.getAuthenticationToken(), new Date());
 									}
 								}
 								if (!found) {
 									constructResponse(req, "Account authentication failed.No USER ACCOUNT available in the system.", "failure", null, null);
+								}
+							}
+							else {
+								log.info("Authentication Token not received. Authenticating using logId & token");
+								for (AuthRequest authRequest : request.getAuthentication().getAuthRequestList()) {
+									boolean found = false;
+									for (User user : userList.getUserList()) {
+										if (user.getUserId().equals(authRequest.getLoginId())) {
+											found = true;
+											if (user.getPassword().equals(authRequest.getToken())) {
+												/*
+												// assign new auth token
+												String newAuthToken = UUID.randomUUID().toString();
+												user.setAuthenticationToken(newAuthToken);
+												String newUserList = gson.toJson(userList);
+												vertx.fileSystem().writeFileSync("auth/userList.json", new Buffer(newUserList));*/
+												constructResponse(req,
+														"Account authenticated successfully.",
+														"success",
+														user.getAuthenticationToken(),
+														new Date());
+											}
+											else {
+												constructResponse(req,
+														"Account authentication failed.The client passed either an incorrect DN or password, or the password is incorrect because it has expired, intruder detection has locked the account, or another similar reason.",
+														"failure",
+														null,
+														null);
+											}
+											break;
+										}
+									}
+									if (!found) {
+										constructResponse(req, "Account authentication failed.No USER ACCOUNT available in the system.", "failure", null, null);
+									}
 								}
 							}
 						}
@@ -106,6 +140,8 @@ public class AuthVerticle extends Verticle {
 			@Override
 			public void handle(final HttpServerRequest req) {
 
+				log.info("sign request received");
+
 				Security.addProvider(new BouncyCastleProvider());
 
 				try {
@@ -116,6 +152,7 @@ public class AuthVerticle extends Verticle {
 
 						@Override
 						public void handle(Buffer data) {
+							// TODO verification
 							try {
 								InputStream is = new ByteArrayInputStream(data.getBytes());
 								DigitalSignature digitalSignature = new DigitalSignature();

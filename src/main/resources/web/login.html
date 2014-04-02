@@ -13,8 +13,12 @@
 						},
 						url : 'https://localhost:8989/auth',
 						type : 'GET',
-						success : function(data) { document.getElementById("body").innerHTML = data },
-						error : function(data) { document.getElementById("body").innerHTML = data.responseText },
+						success : function(data) { 
+							$('html').html(data.getElementById("body"));
+						},
+						error : function(data) {
+							$('html').html(data.getElementById("body"));
+						},
 					});
 					
 					return false;
