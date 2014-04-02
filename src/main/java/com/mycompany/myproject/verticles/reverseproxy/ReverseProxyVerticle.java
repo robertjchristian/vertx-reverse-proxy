@@ -36,7 +36,7 @@ public class ReverseProxyVerticle extends Verticle {
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
 
-	public static final String KEY_PATH = "../../../src/main/resources/auth/key/key";
+	public static final String KEY_PATH = "../../../resources/ssl/server/symKey.key";
 
 	/**
 	 * Configuration parsed and hydrated

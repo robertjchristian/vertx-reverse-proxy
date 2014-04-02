@@ -37,7 +37,7 @@ public class AclTest extends TestVerticle {
 
 			}
 		});
-		String content = vertx.fileSystem().readFileSync("acl/manifest_request.txt").toString();
+		String content = vertx.fileSystem().readFileSync("mock/acl/manifest_request.txt").toString();
 		request.setChunked(true);
 		request.write(content);
 		request.end();

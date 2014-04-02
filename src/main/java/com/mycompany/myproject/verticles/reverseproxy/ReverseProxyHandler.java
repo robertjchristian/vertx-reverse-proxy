@@ -170,7 +170,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 					log.info("session token and basic auth header not found. redirecting to login page");
 
 					// return login page
-					FileCacheUtil.readFile(vertx.eventBus(), log, "../../../src/main/resources/web/login.html", new RedirectHandler(vertx, req));
+					FileCacheUtil.readFile(vertx.eventBus(), log, "../../../resources/web/login.html", new RedirectHandler(vertx, req));
 				}
 			}
 		});

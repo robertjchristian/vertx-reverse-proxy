@@ -1,8 +1,8 @@
 {
     "ssl": {
-        "trustStorePath": "../../../server-truststore.jks",
+        "trustStorePath": "../../../resources/ssl/client/server-truststore.jks",
         "trustStorePassword": "password",
-        "keyStorePath": "../../../server-keystore.jks",
+        "keyStorePath": "../../../resources/ssl/server/server-keystore.jks",
         "keyStorePassword": "password",
         "proxyHttpsPort": 8989
     },

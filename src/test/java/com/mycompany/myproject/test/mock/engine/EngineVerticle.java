@@ -15,7 +15,7 @@ public class EngineVerticle extends Verticle {
 
 
 	public void start() {
-		String rawUserList = vertx.fileSystem().readFileSync("engine/application_user_list.json").toString();
+		String rawUserList = vertx.fileSystem().readFileSync("mock/engine/application_user_list.json").toString();
 		final Gson gson = new Gson();
 		final ApplicationUserList userList = gson.fromJson(rawUserList, ApplicationUserList.class);
 

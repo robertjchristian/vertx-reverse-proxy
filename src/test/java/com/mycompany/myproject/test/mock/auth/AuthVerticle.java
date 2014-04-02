@@ -65,7 +65,7 @@ public class AuthVerticle extends Verticle {
 			@Override
 			public void handle(final HttpServerRequest req) {
 
-				String rawUserList = vertx.fileSystem().readFileSync("auth/userList.json").toString();
+				String rawUserList = vertx.fileSystem().readFileSync("mock/auth/userList.json").toString();
 				final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 				final UserList userList = gson.fromJson(rawUserList, UserList.class);
 
@@ -145,8 +145,8 @@ public class AuthVerticle extends Verticle {
 				Security.addProvider(new BouncyCastleProvider());
 
 				try {
-					final X509Certificate cert = readCertificate(vertx.fileSystem().readFileSync("auth/key/proxy.p7b"));
-					final PrivateKey privateKey = readPrivateKey(vertx.fileSystem().readFileSync("auth/key/proxy_test_key"));
+					final X509Certificate cert = readCertificate(vertx.fileSystem().readFileSync("mock/auth/key/proxy.p7b"));
+					final PrivateKey privateKey = readPrivateKey(vertx.fileSystem().readFileSync("mock/auth/key/proxy_test_key"));
 
 					req.dataHandler(new Handler<Buffer>() {
 

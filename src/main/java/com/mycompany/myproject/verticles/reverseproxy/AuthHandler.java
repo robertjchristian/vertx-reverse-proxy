@@ -35,9 +35,9 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class AuthHandler implements Handler<HttpServerRequest> {
 
-	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "../../../src/main/resources/web/authSuccessful.html";
-	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "../../../src/main/resources/web/authFailNoUserAccount.html";
-	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "../../../src/main/resources/web/authFailInvalidPassword.html";
+	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "../../../resources/web/authSuccessful.html";
+	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "../../../resources/web/authFailNoUserAccount.html";
+	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "../../../resources/web/authFailInvalidPassword.html";
 
 	/**
 	 * Log
