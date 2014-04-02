@@ -40,7 +40,7 @@ public class AuthTest extends TestVerticle {
 			}
 		});
 		request.setChunked(true);
-		request.write(vertx.fileSystem().readFileSync("../../../resources/mock/auth/auth_request.json"));
+		request.write(vertx.fileSystem().readFileSync("mock/auth/auth_request.json"));
 		request.end();
 	}
 
@@ -66,7 +66,7 @@ public class AuthTest extends TestVerticle {
 			}
 		});
 		request.setChunked(true);
-		request.write(vertx.fileSystem().readFileSync("../../../resources/mock/auth/payload_sign_request.txt"));
+		request.write(vertx.fileSystem().readFileSync("mock/auth/payload_sign_request.txt"));
 		request.end();
 	}
 

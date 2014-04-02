@@ -82,7 +82,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 						req.response().end();
 					}
 					else {
-						req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession)));
+						req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
 
 						log.debug("sending signPayload request to auth server");
 						HttpClient signClient = vertx.createHttpClient().setHost("localhost").setPort(9000);

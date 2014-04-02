@@ -36,7 +36,8 @@ public class ReverseProxyVerticle extends Verticle {
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
 
-	public static final String KEY_PATH = "../../../resources/ssl/server/symKey.key";
+	public static String resourceRoot;
+	public static String webRoot;
 
 	/**
 	 * Configuration parsed and hydrated
@@ -68,6 +69,9 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Entry point
 	 */
 	public void start() {
+		// TODO clean this up
+		resourceRoot = container.config().getString("resourceRoot");
+		webRoot = container.config().getString("webRoot");
 
 		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
 			@Override
@@ -102,7 +106,7 @@ public class ReverseProxyVerticle extends Verticle {
 				// bootstrap key
 				// TODO dynamic loading of key
 				// TODO expired key handling
-				FileCacheUtil.readFile(vertx.eventBus(), log, KEY_PATH, new AsyncResultHandler<byte[]>() {
+				FileCacheUtil.readFile(vertx.eventBus(), log, resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
 
 					@Override
 					public void handle(AsyncResult<byte[]> event) {
@@ -146,7 +150,7 @@ public class ReverseProxyVerticle extends Verticle {
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
 				.setSSL(true)
-				.setKeyStorePath(config.ssl.keyStorePath)
+				.setKeyStorePath(resourceRoot + config.ssl.keyStorePath)
 				.setKeyStorePassword(config.ssl.keyStorePassword);
 
 		httpsServer.listen(config.ssl.proxyHttpsPort);

@@ -1,5 +1,7 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
+import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 
@@ -35,9 +37,9 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class AuthHandler implements Handler<HttpServerRequest> {
 
-	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "../../../resources/web/authSuccessful.html";
-	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "../../../resources/web/authFailNoUserAccount.html";
-	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "../../../resources/web/authFailInvalidPassword.html";
+	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
+	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
+	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "auth/authFailInvalidPassword.html";
 
 	/**
 	 * Log
@@ -117,14 +119,14 @@ public class AuthHandler implements Handler<HttpServerRequest> {
 										req.response()
 												.headers()
 												.add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
-										FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_SUCCESS_TEMPLATE_PATH, new TemplateHandler(req));
+										FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_SUCCESS_TEMPLATE_PATH, new TemplateHandler(req));
 									}
 									else {
 										if (data.toString().contains("No USER ACCOUNT")) {
-											FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_FAIL_NO_USER_TEMPLATE_PATH, new TemplateHandler(req));
+											FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_FAIL_NO_USER_TEMPLATE_PATH, new TemplateHandler(req));
 										}
 										else {
-											FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_FAIL_PASSWORD_TEMPLATE_PATH, new TemplateHandler(req));
+											FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_FAIL_PASSWORD_TEMPLATE_PATH, new TemplateHandler(req));
 										}
 									}
 								}

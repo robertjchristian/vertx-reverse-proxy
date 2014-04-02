@@ -1,5 +1,7 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
+import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 
@@ -170,7 +172,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 					log.info("session token and basic auth header not found. redirecting to login page");
 
 					// return login page
-					FileCacheUtil.readFile(vertx.eventBus(), log, "../../../resources/web/login.html", new RedirectHandler(vertx, req));
+					FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "auth/login.html", new RedirectHandler(vertx, req));
 				}
 			}
 		});

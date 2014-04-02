@@ -1,5 +1,7 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
+import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.resourceRoot;
+
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -122,7 +124,7 @@ public class RoleHandler implements Handler<HttpClientResponse> {
 
 		if (r.getProtocol().equalsIgnoreCase("https")) {
 			log.debug("creating https client");
-			client.setSSL(true).setTrustStorePath(config.ssl.trustStorePath).setTrustStorePassword(config.ssl.trustStorePassword);
+			client.setSSL(true).setTrustStorePath(resourceRoot + config.ssl.trustStorePath).setTrustStorePassword(config.ssl.trustStorePassword);
 		}
 
 		final HttpClientRequest cReq = client.request(req.method(), targetURL.getPath().toString(), new Handler<HttpClientResponse>() {
