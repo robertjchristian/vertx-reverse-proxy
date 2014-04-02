@@ -4,6 +4,7 @@ import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 
 import org.junit.Test;
+import org.junit.runners.model.InitializationError;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.testtools.TestVerticle;
@@ -11,7 +12,7 @@ import org.vertx.testtools.TestVerticle;
 public class MockServerTest extends TestVerticle {
 
 	@Test
-	public void runServers() {
+	public void runServers() throws InitializationError {
 		container.logger().info("running mock servers");
 		while (true) {
 
@@ -20,9 +21,6 @@ public class MockServerTest extends TestVerticle {
 
 	@Override
 	public void start() {
-
-		System.setProperty("vertx.test.timeout", "3600");
-		container.logger().info(System.getProperty("vertx.test.timeout"));
 
 		// Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
 		initialize();

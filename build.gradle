@@ -86,6 +86,8 @@ test {
 }
 
 task runMockServers(type: Test) {
+	/* set mock server duration (in seconds) */
+	systemProperties['vertx.test.timeout'] = '3600'
 	testLogging.showStandardStreams = true
 	include 'com/mycompany/myproject/test/mock/MockServerTest*'
 }
