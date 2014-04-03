@@ -1,9 +1,10 @@
 {
     "ssl": {
-        "trustStorePath": "../../../server-truststore.jks",
+        "trustStorePath": "ssl/client/server-truststore.jks",
         "trustStorePassword": "password",
-        "keyStorePath": "../../../server-keystore.jks",
+        "keyStorePath": "ssl/server/server-keystore.jks",
         "keyStorePassword": "password",
+        "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
     "assets":["ico, png, jpg, jpeg, gif, css, js, txt"],

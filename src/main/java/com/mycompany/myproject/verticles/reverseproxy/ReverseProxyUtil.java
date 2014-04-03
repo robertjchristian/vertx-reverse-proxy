@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.vertx.java.core.MultiMap;
+import org.vertx.java.core.json.impl.Base64;
 
 import com.google.gson.Gson;
 
@@ -45,8 +46,8 @@ public class ReverseProxyUtil {
 				String headerValue = headers.get(key);
 				System.out.println("Cookie --> " + headerValue);
 				for (String cookie : headerValue.split(DEFAULT_COOKIE_DELIMITER)) {
-					if (cookie.startsWith(name)) {
-						String cookieValue = cookie.replace(name + "=", "");
+					if (cookie.trim().startsWith(name)) {
+						String cookieValue = cookie.trim().replace(name + "=", "");
 						return cookieValue;
 					}
 				}
@@ -65,4 +66,28 @@ public class ReverseProxyUtil {
 		return null;
 	}
 
+	public static String[] getAuthFromBasicAuthHeader(MultiMap headers) {
+		String basicAuthHeader = headers.get("Authorization");
+		if (basicAuthHeader != null && !basicAuthHeader.isEmpty()) {
+			String parsedAuthInfo = basicAuthHeader.replace("Basic", "").trim();
+			String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
+			String[] auth = decodedAuthInfo.split(":");
+
+			if (auth != null && auth.length == 2) {
+				return auth;
+			}
+		}
+
+		return null;
+	}
+
+	public static boolean isNullOrEmptyAfterTrim(String str) {
+		if (str != null) {
+			if (!str.trim().isEmpty()) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 }

@@ -99,11 +99,8 @@ public class ModuleIntegrationTest extends TestVerticle {
 		// don't have to hardecode it in your tests
 
 		JsonObject config = new JsonObject();
-		config.putNumber("proxyHttpsPort", 8989);
-		// these configurations need to be changed if there are changes in conf.json 
-		config.putString("configFilePath", "../../../conf.json");
-		config.putString("keyStorePath", "../../../server-keystore.jks");
-		config.putString("keyStorePassword", "password");
+		config.putString("resourceRoot", "../../../resources/");
+		config.putString("webRoot", "../../../resources/web/");
 
 		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
 			@Override

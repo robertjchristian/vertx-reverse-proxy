@@ -4,6 +4,7 @@ import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 
 import org.junit.Test;
+import org.junit.runners.model.InitializationError;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.testtools.TestVerticle;
@@ -11,7 +12,7 @@ import org.vertx.testtools.TestVerticle;
 public class MockServerTest extends TestVerticle {
 
 	@Test
-	public void runServers() {
+	public void runServers() throws InitializationError {
 		container.logger().info("running mock servers");
 		while (true) {
 
@@ -44,8 +45,21 @@ public class MockServerTest extends TestVerticle {
 						assertTrue(aclResult.succeeded());
 						assertNotNull("deploymentID should not be null", aclResult.result());
 
-						// If deployed correctly then start the tests!
-						startTests();
+						container.deployVerticle("com.mycompany.myproject.test.mock.engine.EngineVerticle", new AsyncResultHandler<String>() {
+							@Override
+							public void handle(AsyncResult<String> aclResult) {
+
+								// Deployment is asynchronous and this this handler will be called when it's complete (or failed)
+								if (aclResult.failed()) {
+									container.logger().error(aclResult.cause());
+								}
+								assertTrue(aclResult.succeeded());
+								assertNotNull("deploymentID should not be null", aclResult.result());
+
+								// If deployed correctly then start the tests!
+								startTests();
+							}
+						});
 					}
 				});
 			}

@@ -1,0 +1,12 @@
+{
+	"applicationUserList": [{
+		"username": "jun",
+		"organization": "organization",
+		"roles": ["dev"]
+	},
+	{
+		"username": "jun",
+		"organization": "noOrg",
+		"roles": ["admin"]
+	}]
+}

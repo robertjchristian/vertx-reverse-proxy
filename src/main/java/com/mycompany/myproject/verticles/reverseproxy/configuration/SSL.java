@@ -8,14 +8,14 @@ package com.mycompany.myproject.verticles.reverseproxy.configuration;
  */
 public class SSL {
 
-    // TODO encapsulate
+	// TODO encapsulate
 
-    // client properties
-    public String trustStorePath, trustStorePassword;
+	// client properties
+	public String trustStorePath, trustStorePassword;
 
-    // server properties
-    public String keyStorePath, keyStorePassword;
-    public int proxyHttpsPort;
+	// server properties
+	public String keyStorePath, keyStorePassword;
+	public String symKeyPath;
+	public int proxyHttpsPort;
 
 }
-

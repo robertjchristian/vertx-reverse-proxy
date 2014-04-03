@@ -1,10 +1,14 @@
-package com.mycompany.myproject.test.mock.auth.model;
+package com.mycompany.myproject.verticles.reverseproxy.model;
 
 public class User {
 
 	private String userId;
 	private String password;
 	private String authenticationToken;
+
+	public User() {
+		this(null, null, null);
+	}
 
 	public User(String userId, String password, String authenticationToken) {
 		this.userId = userId;

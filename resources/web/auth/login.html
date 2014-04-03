@@ -6,15 +6,22 @@
 				$('#loginForm').submit(function() {
 					var username = $('#userId').val();
 					var password = $('#password').val();
+					var request = { 
+						"userId" : username, 
+						"password" : password 
+					};
 					
 					$.ajax({
-						headers: {
-							"Authorization": 'Basic ' + btoa(username + ":" + password)
-						},
+						data : JSON.stringify(request),
+						contentType : 'applicaton/json',
 						url : 'https://localhost:8989/auth',
-						type : 'GET',
-						success : function(data) { document.getElementById("body").innerHTML = data },
-						error : function(data) { document.getElementById("body").innerHTML = data.responseText },
+						type : 'POST',
+						success : function(data) { 
+							$('html').html(data.getElementById("body"));
+						},
+						error : function(data) {
+							console.log(data);
+						},
 					});
 					
 					return false;

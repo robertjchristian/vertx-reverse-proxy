@@ -1,22 +1,33 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
+import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyUtil.isNullOrEmptyAfterTrim;
+import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
+
+import javax.crypto.SecretKey;
+
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
-import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
-import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.http.HttpServerRequest;
-import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
-import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
+import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.model.User;
 
 /**
  * Created with IntelliJ IDEA.
@@ -26,6 +37,10 @@ import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationRespon
  * To change this template use File | Settings | File Templates.
  */
 public class AuthHandler implements Handler<HttpServerRequest> {
+
+	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
+	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
+	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "auth/authFailInvalidPassword.html";
 
 	/**
 	 * Log
@@ -37,73 +52,83 @@ public class AuthHandler implements Handler<HttpServerRequest> {
 	 */
 	private final ReverseProxyConfiguration config;
 
+	private final AuthConfiguration authConfig;
+
 	/**
 	 * Vert.x
 	 */
 	private final Vertx vertx;
 
-	public AuthHandler(Vertx vertx, ReverseProxyConfiguration config) {
+	/**
+	 * Symmetric key
+	 */
+	private final SecretKey key;
+
+	public AuthHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, SecretKey key) {
 		this.vertx = vertx;
 		this.config = config;
+		this.authConfig = authConfig;
+		this.key = key;
 	}
 
 	@Override
 	public void handle(final HttpServerRequest req) {
 
-		String authInfo = req.headers().get("Authorization");
-		String parsedAuthInfo = authInfo.replace("Basic", "").trim();
-		String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
-		String[] auth = decodedAuthInfo.split(":");
+		final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
-		if (auth != null && auth.length == 2) {
-			AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", auth[0], auth[1]);
-			AuthenticateRequest request = new AuthenticateRequest();
-			request.getAuthentication().getAuthRequestList().add(authRequest);
-			String authRequestStr = new Gson().toJson(request);
+		if (req.method().equalsIgnoreCase("POST")) {
+			log.info("Received POST request to auth");
 
-			HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000);
-			final HttpClientRequest cReq = client.request("POST", "/authenticate", new Handler<HttpClientResponse>() {
+			final User user = new User();
+			req.dataHandler(new Handler<Buffer>() {
 
 				@Override
-				public void handle(HttpClientResponse cRes) {
-					req.response().setStatusCode(cRes.statusCode());
-					req.response().headers().set(cRes.headers());
+				public void handle(Buffer data) {
+					User authenticatingUser = gson.fromJson(data.toString("UTF-8"), User.class);
+					if (authenticatingUser != null) {
+						if (!isNullOrEmptyAfterTrim(authenticatingUser.getUserId()) && !isNullOrEmptyAfterTrim(authenticatingUser.getPassword())) {
+							user.setUserId(authenticatingUser.getUserId());
+							user.setPassword(authenticatingUser.getPassword());
 
-					req.response().setChunked(true);
+							AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", user.getUserId(), user.getPassword());
+							AuthenticateRequest request = new AuthenticateRequest();
+							request.getAuthentication().getAuthRequestList().add(authRequest);
+							String authRequestStr = gson.toJson(request);
+							SessionToken sessionToken = new SessionToken(user.getUserId(), null, null);
 
-					cRes.dataHandler(new Handler<Buffer>() {
-						public void handle(Buffer data) {
-							AuthenticationResponse authResponse = new Gson().fromJson(data.toString(), AuthenticationResponse.class);
-							if (authResponse != null) {
-								if (authResponse.getResponse().getAuthentication().equals("success")) {
-									req.response()
-											.headers()
-											.add("Set-Cookie", String.format("session-token=%s", authResponse.getResponse().getAuthenticationToken()));
-									req.response().write("you've reached the front page of g2 and you are authorized...");
-								}
-								else {
-									req.response().write(authResponse.getResponse().getMessage());
-								}
-							}
+							HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000);
+							final HttpClientRequest cReq = client.request("POST", "/authenticate", new AuthResponseHandler(vertx,
+									config,
+									authConfig,
+									req,
+									key,
+									"",
+									sessionToken,
+									true));
+
+							cReq.setChunked(true);
+							cReq.write(authRequestStr);
+							cReq.end();
 						}
-					});
-					cRes.endHandler(new VoidHandler() {
-						public void handle() {
-							req.response().end();
-						}
-					});
+					}
 				}
 			});
-
-			cReq.setChunked(true);
-			cReq.write(authRequestStr);
-			cReq.end();
 		}
 		else {
-			req.response().setStatusCode(403);
-			req.response().setChunked(true);
-			req.response().write("incomplete basic auth header received.");
-			req.response().end();
+			log.info("Received GET request to auth");
+
+			// clear existing session cookie
+			String sessionTokenCookie = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
+			if (sessionTokenCookie != null) {
+				log.info("session-token cookie found. removing existing cookie");
+				DateFormat df = new SimpleDateFormat("EEE, MMM dd yyyy hh:mm:ss zzz");
+				// set to GMT
+				df.setTimeZone(TimeZone.getTimeZone(""));
+				req.response().headers().add("Set-Cookie", String.format("session-token=; expires=%s", df.format(new Date(0))));
+			}
+
+			// return login page
+			FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "auth/login.html", new RedirectHandler(vertx, req));
 		}
 	}
 }

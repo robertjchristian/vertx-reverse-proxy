@@ -1,0 +1,19 @@
+<html id="body">
+	<head>
+		<script type="text/javascript">
+			var confirmed = window.confirm("do redirect ?");
+			if(confirmed) {
+				if(window.location.pathname === "/auth") {
+					window.location.assign("/sb");
+				}
+				else {
+					window.location.reload();
+				}
+			}
+			else {
+				console.log("not redirecting");
+				// do nothing
+			}
+		</script>
+	</head>
+</html>

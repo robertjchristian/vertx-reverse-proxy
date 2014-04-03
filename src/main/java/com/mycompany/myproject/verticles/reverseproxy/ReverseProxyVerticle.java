@@ -1,27 +1,14 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.VoidHandler;
-import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.http.HttpClient;
-import org.vertx.java.core.http.HttpClientRequest;
-import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.http.HttpServer;
-import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.http.RouteMatcher;
-import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
@@ -29,11 +16,8 @@ import org.vertx.java.platform.Verticle;
 import com.google.gson.Gson;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.RewriteRule;
-import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
-import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
-import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
 
 /**
  * Reverse proxy verticle
@@ -52,11 +36,18 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Configuration path
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
+	public static final String AUTH_CONFIG_PATH = "../../../conf/conf.auth.json";
+
+	public static String resourceRoot;
+	public static String webRoot;
 
 	/**
 	 * Configuration parsed and hydrated
 	 */
 	private ReverseProxyConfiguration config;
+	private AuthConfiguration authConfig;
+
+	private SecretKey key;
 
 	//
 	//
@@ -81,6 +72,18 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Entry point
 	 */
 	public void start() {
+		// TODO clean this up
+		resourceRoot = container.config().getString("resourceRoot");
+		webRoot = container.config().getString("webRoot");
+
+		// TODO register update listener
+		FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_CONFIG_PATH, new AsyncResultHandler<byte[]>() {
+			@Override
+			public void handle(AsyncResult<byte[]> event) {
+				authConfig = getConfig(AuthConfiguration.class, event.result());
+
+			}
+		});
 
 		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
 			@Override
@@ -112,8 +115,19 @@ public class ReverseProxyVerticle extends Verticle {
 					}
 				});
 
-				// start verticle
-				doStart();
+				// bootstrap key
+				// TODO dynamic loading of key
+				// TODO expired key handling
+				FileCacheUtil.readFile(vertx.eventBus(), log, resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
+
+					@Override
+					public void handle(AsyncResult<byte[]> event) {
+						key = new SecretKeySpec(event.result(), "AES");
+
+						// start verticle
+						doStart();
+					}
+				});
 			}
 		});
 	}
@@ -121,39 +135,37 @@ public class ReverseProxyVerticle extends Verticle {
 	// called after initial filecache
 	public void doStart() {
 
-        // TODO lost ability to update dynamically... these handlers are constructed
-        // once, during verticle deploy, and config is not updated
-
+		// TODO lost ability to update dynamically... these handlers are constructed
+		// once, during verticle deploy, and config is not updated
 
 		RouteMatcher routeMatcher = new RouteMatcher();
 
-        /**
-         * Handle requests for authentication
-         */
-		routeMatcher.get("/auth", new AuthHandler(vertx, config));
+		/**
+		 * Handle requests for authentication
+		 */
+		routeMatcher.all("/auth", new AuthHandler(vertx, config, authConfig, key));
 
-        /**
-         * Handle requests for assets
-         */
-        for (String asset : config.assets) {
-            String pattern = "/." + asset;
-            routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, false));
-        }
+		/**
+		 * Handle requests for assets
+		 */
+		for (String asset : config.assets) {
+			String pattern = "/." + asset;
+			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, authConfig, false, key));
+		}
 
-        /**
-         * Handle all other requests
-         */
-		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, true));
+		/**
+		 * Handle all other requests
+		 */
+		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, authConfig, true, key));
 
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
 				.setSSL(true)
-				.setKeyStorePath(config.ssl.keyStorePath)
+				.setKeyStorePath(resourceRoot + config.ssl.keyStorePath)
 				.setKeyStorePassword(config.ssl.keyStorePassword);
 
 		httpsServer.listen(config.ssl.proxyHttpsPort);
 	}
-
 
 
 }
