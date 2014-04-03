@@ -16,6 +16,7 @@ import org.vertx.java.platform.Verticle;
 import com.google.gson.Gson;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 
 /**
@@ -35,6 +36,7 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Configuration path
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
+	public static final String AUTH_CONFIG_PATH = "../../../conf/conf.auth.json";
 
 	public static String resourceRoot;
 	public static String webRoot;
@@ -43,6 +45,7 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Configuration parsed and hydrated
 	 */
 	private ReverseProxyConfiguration config;
+	private AuthConfiguration authConfig;
 
 	private SecretKey key;
 
@@ -72,6 +75,15 @@ public class ReverseProxyVerticle extends Verticle {
 		// TODO clean this up
 		resourceRoot = container.config().getString("resourceRoot");
 		webRoot = container.config().getString("webRoot");
+
+		// TODO register update listener
+		FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_CONFIG_PATH, new AsyncResultHandler<byte[]>() {
+			@Override
+			public void handle(AsyncResult<byte[]> event) {
+				authConfig = getConfig(AuthConfiguration.class, event.result());
+
+			}
+		});
 
 		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
 			@Override
@@ -115,7 +127,6 @@ public class ReverseProxyVerticle extends Verticle {
 						// start verticle
 						doStart();
 					}
-
 				});
 			}
 		});
@@ -132,20 +143,20 @@ public class ReverseProxyVerticle extends Verticle {
 		/**
 		 * Handle requests for authentication
 		 */
-		routeMatcher.get("/auth", new AuthHandler(vertx, config, key));
+		routeMatcher.all("/auth", new AuthHandler(vertx, config, authConfig, key));
 
 		/**
 		 * Handle requests for assets
 		 */
 		for (String asset : config.assets) {
 			String pattern = "/." + asset;
-			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, false, key));
+			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, authConfig, false, key));
 		}
 
 		/**
 		 * Handle all other requests
 		 */
-		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, true, key));
+		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, authConfig, true, key));
 
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)

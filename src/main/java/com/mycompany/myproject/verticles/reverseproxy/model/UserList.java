@@ -1,4 +1,4 @@
-package com.mycompany.myproject.test.mock.auth.model;
+package com.mycompany.myproject.verticles.reverseproxy.model;
 
 import java.util.ArrayList;
 import java.util.List;

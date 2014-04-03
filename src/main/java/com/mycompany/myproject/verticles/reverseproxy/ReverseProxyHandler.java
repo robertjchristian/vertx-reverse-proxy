@@ -19,6 +19,7 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
@@ -44,6 +45,8 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 	 */
 	private final ReverseProxyConfiguration config;
 
+	private final AuthConfiguration authConfig;
+
 	/**
 	 * Vert.x
 	 */
@@ -59,9 +62,10 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 	 */
 	private final SecretKey key;
 
-	public ReverseProxyHandler(Vertx vertx, ReverseProxyConfiguration config, boolean requiresAuthAndACL, SecretKey key) {
+	public ReverseProxyHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, boolean requiresAuthAndACL, SecretKey key) {
 		this.vertx = vertx;
 		this.config = config;
+		this.authConfig = authConfig;
 		this.requiresAuthAndACL = requiresAuthAndACL;
 		this.key = key;
 	}
@@ -149,13 +153,15 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
 					if (exception == null) {
 						log.debug("Sending auth request to authentication server.");
-						HttpClient authClient = vertx.createHttpClient().setHost("localhost").setPort(9000);
-						final HttpClientRequest authReq = authClient.request("POST", "/authenticate", new AuthResponseHandler(vertx,
+						HttpClient authClient = vertx.createHttpClient().setHost(authConfig.getHost("auth")).setPort(authConfig.getPort("auth"));
+						final HttpClientRequest authReq = authClient.request("POST", authConfig.getRequestPath("auth", "auth"), new AuthResponseHandler(vertx,
 								config,
+								authConfig,
 								req,
 								key,
 								payloadBuffer.toString("UTF-8"),
-								sessionToken));
+								sessionToken,
+								false));
 
 						authReq.setChunked(true);
 						authReq.write(authRequestStr);

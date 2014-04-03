@@ -81,11 +81,13 @@ public class ReverseProxyUtil {
 		return null;
 	}
 
-	public static String padWhitespace(String str) {
-		while ((str.length() % 16) != 0) {
-			str = str.concat(" ");
+	public static boolean isNullOrEmptyAfterTrim(String str) {
+		if (str != null) {
+			if (!str.trim().isEmpty()) {
+				return false;
+			}
 		}
 
-		return str;
+		return true;
 	}
 }

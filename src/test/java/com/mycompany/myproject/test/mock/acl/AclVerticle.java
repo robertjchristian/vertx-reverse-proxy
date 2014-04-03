@@ -21,6 +21,7 @@ public class AclVerticle extends Verticle {
 	private final String manifest = "mock/acl/manifest_response.txt";
 
 	public void setManifestResponse(final HttpServerRequest req, final String filePath, final Map<String, String> headers) {
+
 		vertx.fileSystem().readFile(filePath, new AsyncResultHandler<Buffer>() {
 
 			@Override
@@ -42,8 +43,7 @@ public class AclVerticle extends Verticle {
 			@Override
 			public void handle(final HttpServerRequest req) {
 
-				// sample request I received is not actually the multipart request; it's text/plain (but response is) ??
-				// waiting on library from Robert K. to generate request
+				log.info("manifest request received");
 
 				Map<String, String> headers = new HashMap<String, String>();
 				headers.put("Server", "nginx/1.4.4");

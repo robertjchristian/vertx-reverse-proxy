@@ -29,12 +29,12 @@ import org.vertx.java.platform.Verticle;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.liaison.commons.security.pkcs7.signandverify.DigitalSignature;
-import com.mycompany.myproject.test.mock.auth.model.User;
-import com.mycompany.myproject.test.mock.auth.model.UserList;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
 import com.mycompany.myproject.verticles.reverseproxy.model.Response;
+import com.mycompany.myproject.verticles.reverseproxy.model.User;
+import com.mycompany.myproject.verticles.reverseproxy.model.UserList;
 
 public class AuthVerticle extends Verticle {
 

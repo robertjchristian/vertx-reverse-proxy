@@ -9,6 +9,14 @@ public class ApplicationUser {
 	private String organization;
 	private List<String> roles;
 
+	public ApplicationUser() {
+		this(null, null);
+	}
+
+	public ApplicationUser(List<String> roles) {
+		this(null, null, roles);
+	}
+
 	public ApplicationUser(String username, String organization) {
 		this(username, organization, new ArrayList<String>());
 	}
