@@ -1,5 +1,5 @@
 {
-	"authConfigs": {
+	"serviceDependencyConfigs": {
 		"auth" : {
 			"host" : "localhost",
 			"port" : 9000,

@@ -36,22 +36,37 @@ public class EngineVerticle extends Verticle {
 					public void handle(Buffer data) {
 						ApplicationUser requestedUser = gson.fromJson(data.toString(), ApplicationUser.class);
 						boolean found = false;
+						ApplicationUser roles = null;
 						for (ApplicationUser existingAppUser : userList.getApplicationUserList()) {
 
-							if (existingAppUser.getUser().equals(requestedUser.getUser())
-									&& existingAppUser.getOrganization().equals(requestedUser.getOrganization())) {
-								found = true;
-
-								ApplicationUser roles = new ApplicationUser(existingAppUser.getRoles());
-
-								req.response().setChunked(true);
-								req.response().write(gson.toJson(roles));
-								req.response().end();
+							if (existingAppUser.getUser().equals(requestedUser.getUser())) {
+								if (existingAppUser.getOrganization() == null) {
+									if (existingAppUser.getOrganization() == requestedUser.getOrganization()) {
+										found = true;
+										roles = new ApplicationUser(existingAppUser.getRoles());
+									}
+								}
+								else {
+									if (existingAppUser.getOrganization().equals(requestedUser.getOrganization())) {
+										found = true;
+										roles = new ApplicationUser(existingAppUser.getRoles());
+									}
+								}
 							}
 						}
-						if (!found) {
+
+						if (found) {
+							req.response().setStatusCode(200);
 							req.response().setChunked(true);
-							req.response().write(String.format("unable to find user %s@%s", requestedUser.getUser(), requestedUser.getOrganization()));
+							req.response().write(gson.toJson(roles));
+							req.response().end();
+						}
+						else {
+							req.response().setStatusCode(401);
+							req.response().setChunked(true);
+							req.response().write(String.format("failed to fetch role. unable to find user %s@%s",
+									requestedUser.getUser(),
+									requestedUser.getOrganization()));
 							req.response().end();
 						}
 					}

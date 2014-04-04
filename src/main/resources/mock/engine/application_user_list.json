@@ -6,7 +6,6 @@
 	},
 	{
 		"username": "jun",
-		"organization": "noOrg",
 		"roles": ["admin"]
 	}]
 }

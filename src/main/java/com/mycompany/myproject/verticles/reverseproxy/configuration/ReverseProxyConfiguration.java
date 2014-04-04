@@ -1,10 +1,9 @@
 package com.mycompany.myproject.verticles.reverseproxy.configuration;
 
-import com.google.gson.Gson;
-
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+
+import com.google.gson.Gson;
 
 /**
  * Configuration
@@ -13,53 +12,84 @@ import java.util.Set;
  */
 public class ReverseProxyConfiguration {
 
+	enum BinaryPrefix {
+		k, m, g
+	}
 
-    public SSL ssl;  // TODO split into client and server (client should be able to change truststore location/pass dynamically)
-    public Map<String, RewriteRule> rewriteRules;
-    public String[] assets;
+	public SSL ssl; // TODO split into client and server (client should be able to change truststore location/pass dynamically)
+	public Map<String, RewriteRule> rewriteRules;
+	public String[] assets;
+	public String defaultService;
+	public String maxPayloadSizeBytes;
 
-    public ReverseProxyConfiguration() {
+	public ReverseProxyConfiguration() {
 
-        // "assets" may be accessed without authentication/acl
-        assets = new String[] {"ico, png, jpg, jpeg, gif, css, js, txt"};
+		// "assets" may be accessed without authentication/acl
+		assets = new String[] { "ico, png, jpg, jpeg, gif, css, js, txt" };
 
-        ssl = new SSL();
+		ssl = new SSL();
 
-        // ssl (as client)
-        ssl.trustStorePath = "../../../server-truststore.jks";
-        ssl.trustStorePassword = "password";
+		// ssl (as client)
+		ssl.trustStorePath = "../../../server-truststore.jks";
+		ssl.trustStorePassword = "password";
 
-        // ssl (as server)
-        ssl.proxyHttpsPort = 8989;
-        ssl.keyStorePath = "../../../server-keystore.jks";
-        ssl.keyStorePassword = "password";
+		// ssl (as server)
+		ssl.proxyHttpsPort = 8989;
+		ssl.keyStorePath = "../../../server-keystore.jks";
+		ssl.keyStorePassword = "password";
 
-        // rewrite rules
-        rewriteRules = new HashMap<String, RewriteRule>();
-        rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
-        rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
-        rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
-        rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
+		// rewrite rules
+		rewriteRules = new HashMap<String, RewriteRule>();
+		rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
+		rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
+		rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
+		rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
 
-    }
+	}
 
-    public static void main(String[] args) {
+	public long getMaxPayloadSizeBytesInNumber() {
 
-        Gson g = new Gson();
+		if (maxPayloadSizeBytes.matches("\\d*[a-z]")) {
+			String binaryPrefix = maxPayloadSizeBytes.substring(maxPayloadSizeBytes.length() - 1, maxPayloadSizeBytes.length());
+			String payloadSize = maxPayloadSizeBytes.substring(0, maxPayloadSizeBytes.length() - 1);
+			switch (binaryPrefix) {
+			case "k":
+				return Long.valueOf(payloadSize) * 1024;
+			case "m":
+				return Long.valueOf(payloadSize) * 1024 * 1024;
+			case "g":
+				return Long.valueOf(payloadSize) * 1024 * 1024 * 1024;
+			default:
+				return 512 * 1024;
+			}
+		}
+		else if (maxPayloadSizeBytes.matches("\\d*")) {
+			return Long.valueOf(maxPayloadSizeBytes);
+		}
+		// did not match expected pattern, return default value 512k
+		else {
+			return 512 * 1024;
+		}
+	}
 
-        // test from pojo
-        ReverseProxyConfiguration configurationA = new ReverseProxyConfiguration();
-        System.out.println(g.toJson(configurationA));
+	public static void main(String[] args) {
 
-        // test to pojo
-        String rawConfig = "{\"ssl_client\":{\"trustStorePath\":\"../../../server-truststore.jks\",\"trustStorePassword\":\"password\"},\"ssl_server\":{\"keyStorePath\":\"../../../server-keystore.jks\",\"proxyHttpsPort\":\"8989\",\"keyStorePassword\":\"password\"},\"rewrite_rules\":{\"sn\":{\"protocol\":\"um\",\"host\":\"localhost\",\"port\":9000},\"google\":{\"protocol\":\"http\",\"host\":\"google.com\",\"port\":80}}}";
-        ReverseProxyConfiguration configurationB = g.fromJson(rawConfig, ReverseProxyConfiguration.class);
+		Gson g = new Gson();
 
-        // and back to string...
-        configurationB.rewriteRules.put("bing", new RewriteRule("http", "bing.com", 80));
-        configurationB.rewriteRules.remove("google");
-        System.out.println(g.toJson(configurationB));
+		// test from pojo
+		ReverseProxyConfiguration configurationA = new ReverseProxyConfiguration();
+		System.out.println(g.toJson(configurationA));
 
-    }
+		// test to pojo
+		String rawConfig = "{\"ssl_client\":{\"trustStorePath\":\"../../../server-truststore.jks\",\"trustStorePassword\":\"password\"},\"ssl_server\":{\"keyStorePath\":\"../../../server-keystore.jks\",\"proxyHttpsPort\":\"8989\",\"keyStorePassword\":\"password\"},\"rewrite_rules\":{\"sn\":{\"protocol\":\"um\",\"host\":\"localhost\",\"port\":9000},\"google\":{\"protocol\":\"http\",\"host\":\"google.com\",\"port\":80}}}";
+		ReverseProxyConfiguration configurationB = g.fromJson(rawConfig, ReverseProxyConfiguration.class);
 
+		// and back to string...
+		configurationB.rewriteRules.put("bing", new RewriteRule("http", "bing.com", 80));
+		configurationB.rewriteRules.remove("google");
+		System.out.println(g.toJson(configurationB));
+
+		configurationB.maxPayloadSizeBytes = "128m";
+		System.out.println(configurationB.getMaxPayloadSizeBytesInNumber());
+	}
 }

@@ -5,19 +5,15 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
-import com.google.gson.Gson;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
-import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencyConfiguration;
 
 /**
  * Reverse proxy verticle
@@ -36,7 +32,7 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Configuration path
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
-	public static final String AUTH_CONFIG_PATH = "../../../conf/conf.auth.json";
+	public static final String SERVICE_DEPENDENCY_CONFIG_PATH = "../../../conf/conf.servicedependency.json";
 
 	public static String resourceRoot;
 	public static String webRoot;
@@ -44,10 +40,10 @@ public class ReverseProxyVerticle extends Verticle {
 	/**
 	 * Configuration parsed and hydrated
 	 */
-	private ReverseProxyConfiguration config;
-	private AuthConfiguration authConfig;
+	public static ReverseProxyConfiguration config;
+	public static ServiceDependencyConfiguration serviceDependencyConfig;
 
-	private SecretKey key;
+	public static SecretKey key;
 
 	//
 	//
@@ -59,77 +55,33 @@ public class ReverseProxyVerticle extends Verticle {
 	//
 	//
 
-	protected static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
-		// TODO mind encoding
-		String fileAsString = new String(fileContents);
-
-		Gson g = new Gson();
-		T c = g.fromJson(fileAsString, clazz);
-		return c;
-	}
-
 	/**
 	 * Entry point
 	 */
 	public void start() {
-		// TODO clean this up
 		resourceRoot = container.config().getString("resourceRoot");
 		webRoot = container.config().getString("webRoot");
 
-		// TODO register update listener
-		FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_CONFIG_PATH, new AsyncResultHandler<byte[]>() {
+		AsyncResultHandler<byte[]> handler = new AsyncResultHandler<byte[]>() {
 			@Override
 			public void handle(AsyncResult<byte[]> event) {
-				authConfig = getConfig(AuthConfiguration.class, event.result());
+				key = new SecretKeySpec(event.result(), "AES");
 
+				// start verticle
+				doStart();
 			}
-		});
+		};
 
-		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
-			@Override
-			public void handle(AsyncResult<byte[]> event) {
-
-				log.debug("Updating configuration based on change to [" + CONFIG_PATH + "].");
-
-				// set configuration
-				config = getConfig(ReverseProxyConfiguration.class, event.result());
-
-
-				// register update listener     (TODO isolate this code for readability)
-				String channel = FileCacheVerticle.FILE_CACHE_CHANNEL + CONFIG_PATH;
-				vertx.eventBus().registerHandler(channel, new Handler<Message<Boolean>>() {
-					@Override
-					public void handle(Message<Boolean> message) {
-						// update config
-						log.info("Configuration file " + CONFIG_PATH + " has been updated in cache.  Re-fetching.");
-
-						FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
-							@Override
-							public void handle(AsyncResult<byte[]> event) {
-
-								// set configuration
-								config = getConfig(ReverseProxyConfiguration.class, event.result());
-
-							}
-						});
-					}
-				});
-
-				// bootstrap key
-				// TODO dynamic loading of key
-				// TODO expired key handling
-				FileCacheUtil.readFile(vertx.eventBus(), log, resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
-
-					@Override
-					public void handle(AsyncResult<byte[]> event) {
-						key = new SecretKeySpec(event.result(), "AES");
-
-						// start verticle
-						doStart();
-					}
-				});
-			}
-		});
+		FileCacheUtil.readFile(vertx.eventBus(), log, SERVICE_DEPENDENCY_CONFIG_PATH, new ConfigFileHandler<ServiceDependencyConfiguration>(vertx,
+				SERVICE_DEPENDENCY_CONFIG_PATH,
+				serviceDependencyConfig,
+				ServiceDependencyConfiguration.class,
+				null));
+		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new ConfigFileHandler<ReverseProxyConfiguration>(vertx,
+				CONFIG_PATH,
+				config,
+				ReverseProxyConfiguration.class,
+				handler));
 	}
 
 	// called after initial filecache
@@ -143,20 +95,20 @@ public class ReverseProxyVerticle extends Verticle {
 		/**
 		 * Handle requests for authentication
 		 */
-		routeMatcher.all("/auth", new AuthHandler(vertx, config, authConfig, key));
+		routeMatcher.all("/auth", new AuthHandler(vertx));
 
 		/**
 		 * Handle requests for assets
 		 */
 		for (String asset : config.assets) {
-			String pattern = "/." + asset;
-			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, authConfig, false, key));
+			String pattern = "/.*\\." + asset;
+			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, false));
 		}
 
 		/**
 		 * Handle all other requests
 		 */
-		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, authConfig, true, key));
+		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, true));
 
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
@@ -167,5 +119,12 @@ public class ReverseProxyVerticle extends Verticle {
 		httpsServer.listen(config.ssl.proxyHttpsPort);
 	}
 
-
+	public static synchronized <T> void setConfig(final T newConfig) {
+		if (newConfig instanceof ReverseProxyConfiguration) {
+			config = (ReverseProxyConfiguration) newConfig;
+		}
+		else if (newConfig instanceof ServiceDependencyConfiguration) {
+			serviceDependencyConfig = (ServiceDependencyConfiguration) newConfig;
+		}
+	}
 }

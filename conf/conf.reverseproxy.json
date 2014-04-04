@@ -7,9 +7,11 @@
         "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
-    "assets":["ico, png, jpg, jpeg, gif, css, js, txt"],
+    "assets":["ico", "png", "jpg", "jpeg", "gif", "css", "js", "txt"],
+    "defaultService" : "sb",
+    "maxPayloadSizeBytes": "512k",
     "rewriteRules": {
-        "sn": {
+        "sb": {
             "protocol": "http",
             "host": "localhost",
             "port": 8080

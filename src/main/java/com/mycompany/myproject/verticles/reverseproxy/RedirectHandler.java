@@ -23,19 +23,18 @@ public class RedirectHandler implements AsyncResultHandler<byte[]> {
 	@Override
 	public void handle(AsyncResult<byte[]> event) {
 		try {
-			// preserve original request uri for GET request
-			if (req.method().equals("GET")) {
-				req.response()
-						.headers()
-						.add("Set-Cookie", String.format("original-request=%s", Base64.encodeBytes(req.absoluteURI().toString().getBytes("UTF-8"))));
-			}
+			// preserve original request uri
+			req.response()
+					.headers()
+					.add("Set-Cookie", String.format("original-request=%s", Base64.encodeBytes(req.absoluteURI().toString().getBytes("UTF-8"))));
 			req.response().setChunked(true);
 			req.response().setStatusCode(200);
 			req.response().write(new String(event.result()));
 			req.response().end();
 		}
 		catch (Exception e) {
-			ReverseProxyHandler.sendFailure(req, e.getMessage());
+			ReverseProxyHandler.sendAuthError(vertx, req, 500, e.getMessage());
+			return;
 		}
 	}
 }
