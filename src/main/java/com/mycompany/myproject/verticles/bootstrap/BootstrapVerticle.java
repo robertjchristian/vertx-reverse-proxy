@@ -9,7 +9,7 @@ import org.vertx.java.platform.Verticle;
  * <p/>
  * Bootstraps proxy dependencies.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class BootstrapVerticle extends Verticle {
 

@@ -5,7 +5,7 @@ import com.google.gson.Gson;
 /**
  * Configuration
  *
- * @author Robert Christian
+ * @author robertjchristian
  */
 public class FileCacheConfiguration {
 

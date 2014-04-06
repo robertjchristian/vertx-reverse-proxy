@@ -1,1 +1,4 @@
-{"refreshMillis":300000,"baseDir":"."}
+{
+    "refreshMillis":300000,
+    "baseDir":"."
+}
