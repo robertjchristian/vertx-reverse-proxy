@@ -1,5 +1,4 @@
 {
-    "Comment": "See ./conf folder for verticle-specific configuration.",
     "resourceRoot": "../../../resources/",
     "webRoot": "../../../resources/web/"
 }

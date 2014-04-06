@@ -13,8 +13,7 @@ import java.util.Set;
  */
 public class ReverseProxyConfiguration {
 
-
-    public SSL ssl;  // TODO split into client and server (client should be able to change truststore location/pass dynamically)
+    public SSL ssl;
     public Map<String, RewriteRule> rewriteRules;
     public String[] assets;
 

@@ -5,7 +5,7 @@ import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.platform.Verticle;
 
 /**
- * Main entry point for proxy
+ * Main entry point for vertx-reverse-proxy
  * <p/>
  * Bootstraps proxy dependencies.
  *
@@ -15,10 +15,9 @@ public class BootstrapVerticle extends Verticle {
 
     public void start() {
 
-        // deploy the file cache verticle first
-
-        // TODO consider (1) load filecache conf, (2) deploy using file cache conf
-
+        /**
+         * Deploy the file cache verticle first
+         */
         container.deployVerticle("com.mycompany.myproject.verticles.filecache.FileCacheVerticle", container.config(), new AsyncResultHandler<String>() {
             @Override
             public void handle(AsyncResult<String> event) {

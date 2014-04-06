@@ -27,6 +27,7 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 
 
 /**
+ * @author robertjchristian
  * @author hpark
  */
 public class ReverseProxyHandler implements Handler<HttpServerRequest> {
@@ -68,9 +69,6 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
     @Override
     public void handle(final HttpServerRequest req) {
-
-        // TODO - Need to recreate session for every request.  Should guard with "requiresAuthAndACL"
-        // done in Sign Handler
 
         /**
          * PARSE REQUEST
