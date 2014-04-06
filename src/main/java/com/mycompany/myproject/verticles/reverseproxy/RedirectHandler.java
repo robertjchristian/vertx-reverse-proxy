@@ -37,7 +37,7 @@ public class RedirectHandler implements AsyncResultHandler<byte[]> {
             req.response().write(new String(event.result()));
             req.response().end();
         } catch (Exception e) {
-            ReverseProxyHandler.sendFailure(req, e.getMessage());
+            ReverseProxyUtil.sendFailure(log, req, e.getMessage());
         }
     }
 }

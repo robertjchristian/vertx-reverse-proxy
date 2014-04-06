@@ -7,9 +7,12 @@ import java.util.List;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.vertx.java.core.MultiMap;
+import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.json.impl.Base64;
+import org.vertx.java.core.buffer.Buffer;
 
 import com.google.gson.Gson;
+import org.vertx.java.core.logging.Logger;
 
 /**
  * Reverse proxy utilities
@@ -20,6 +23,31 @@ import com.google.gson.Gson;
 public class ReverseProxyUtil {
 
     private static final String DEFAULT_COOKIE_DELIMITER = ";";
+
+    /**
+     * Sends a failure with message and ends connection.
+     *
+     * @param req - HTTP Request
+     * @param msg - Message returned to client
+     */
+    public static void sendFailure(Logger log, final HttpServerRequest req, final String msg) {
+        log.error(msg);
+        req.response().setChunked(true);
+        req.response().setStatusCode(500);
+        req.response().setStatusMessage("Internal Server Error.");
+        req.response().write(msg);
+        req.response().end();
+    }
+
+
+    public static void send200OKResponse(Logger log, final HttpServerRequest req, final Buffer response, final String contentType) {
+        req.response().putHeader("content-type", contentType);
+        req.response().setChunked(true);
+        req.response().setStatusCode(200);
+        req.response().setStatusMessage("OK");
+        req.response().write(response);
+        req.response().end();
+    }
 
     public static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
         // TODO mind encoding
@@ -72,21 +100,6 @@ public class ReverseProxyUtil {
                 return nvp.getValue();
             }
         }
-        return null;
-    }
-
-    public static String[] getAuthFromBasicAuthHeader(MultiMap headers) {
-        String basicAuthHeader = headers.get("Authorization");
-        if (basicAuthHeader != null && !basicAuthHeader.isEmpty()) {
-            String parsedAuthInfo = basicAuthHeader.replace("Basic", "").trim();
-            String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
-            String[] auth = decodedAuthInfo.split(":");
-
-            if (auth != null && auth.length == 2) {
-                return auth;
-            }
-        }
-
         return null;
     }
 

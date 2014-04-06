@@ -1,44 +1,72 @@
-<html id="body">
-	<head>
-		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
-		<script type="text/javascript">
-			$(document).ready(function() {
-				$('#loginForm').submit(function() {
-					var username = $('#userId').val();
-					var password = $('#password').val();
-					var request = { 
-						"userId" : username, 
-						"password" : password 
-					};
-					
-					$.ajax({
-						data : JSON.stringify(request),
-						contentType : 'applicaton/json',
-						url : 'https://localhost:8989/auth',
-						type : 'POST',
-						success : function(data) { 
-							$('html').html(data.getElementById("body"));
-						},
-						error : function(data) {
-							console.log(data);
-						},
-					});
-					
-					return false;
-				});
-			});
-		</script>
-	</head>
-	<body>
-		<form id="loginForm" method="post">
-			<p>
-			<label for="userIdLabel">User ID: </label>
-			<input type="text" id="userId"><br>
-			<label for="passowrdLabel">Password: </label>
-			<input type="password" id="password"><br>
-			<input type="submit" value="Send"> 
-			<input type="reset">
-			</p>
-		</form>
-	</body>
+<!DOCTYPE html>
+
+<html lang="en" id="body">
+<head>
+
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('#loginForm').submit(function () {
+                var username = $('#userId').val();
+                var password = $('#password').val();
+                var request = {
+                    "userId": username,
+                    "password": password
+                };
+
+                $.ajax({
+                    data: JSON.stringify(request),
+                    contentType: 'applicaton/json',
+                    url: 'https://localhost:8989/auth',
+                    type: 'POST',
+                    success: function (data) {
+                        $('html').html(data.getElementById("body"));
+                    },
+                    error: function (data) {
+                        console.log(data);
+                    },
+                });
+
+                return false;
+            });
+        });
+    </script>
+</head>
+<body>
+
+
+<div class="container" style="padding-top: 2em;">
+
+    <div class="jumbotron">
+
+        <h1>SOA Proxy Login</h1>
+
+        <p>Please login</p>
+
+        <div class="container">
+            <form role="form" class="form-horizontal" id="loginForm" method="post">
+
+                <div class="form-group controls">
+                    <label class="control-label" for="userId">User ID</label>
+                    <input type="text" class="form-control" id="userId" placeholder="User ID">
+                </div>
+
+                <div class="form-group controls">
+                    <label class="control-label" for="password">Password</label>
+                    <input type="password" class="form-control" id="password" placeholder="Password">
+                </div>
+
+                <div class="form-group controls">
+                  <button type="submit" class="btn btn-default">Login</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
 </html>

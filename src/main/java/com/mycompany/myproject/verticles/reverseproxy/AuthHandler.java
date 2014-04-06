@@ -10,6 +10,7 @@ import java.util.TimeZone;
 
 import javax.crypto.SecretKey;
 
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
@@ -22,7 +23,6 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
@@ -48,8 +48,6 @@ public class AuthHandler implements Handler<HttpServerRequest> {
      */
     private final ReverseProxyConfiguration config;
 
-    private final AuthConfiguration authConfig;
-
     /**
      * Vert.x
      */
@@ -60,10 +58,9 @@ public class AuthHandler implements Handler<HttpServerRequest> {
      */
     private final SecretKey key;
 
-    public AuthHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, SecretKey key) {
+    public AuthHandler(Vertx vertx, ReverseProxyConfiguration config, SecretKey key) {
         this.vertx = vertx;
         this.config = config;
-        this.authConfig = authConfig;
         this.key = key;
     }
 
@@ -95,7 +92,6 @@ public class AuthHandler implements Handler<HttpServerRequest> {
                             HttpClient client = vertx.createHttpClient().setHost("localhost").setPort(9000);
                             final HttpClientRequest cReq = client.request("POST", "/authenticate", new AuthResponseHandler(vertx,
                                     config,
-                                    authConfig,
                                     req,
                                     key,
                                     "",

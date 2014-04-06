@@ -55,13 +55,12 @@ public class FileCacheVerticle extends Verticle {
 
                 // broadcast updates
                 for (FileCacheEntry entry : event.result()) {
-
                     // TODO should be notifying on failures as well
                     vertx.eventBus().publish(entry.getEventBusNotificationChannel(), true);
-
                 }
 
                 log.debug("Scheduling next update in " + REFRESH_INTERVAL_MILLIS + " milliseconds");
+
                 // scheduling this from within the timer enables us to create a window between updates,
                 // as opposed to using a periodic timer, where their could be overlaps depending on how
                 // long updates take...

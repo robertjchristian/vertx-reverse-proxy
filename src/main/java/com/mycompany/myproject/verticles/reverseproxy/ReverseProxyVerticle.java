@@ -13,10 +13,8 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
-import com.google.gson.Gson;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 
 /**
@@ -36,7 +34,6 @@ public class ReverseProxyVerticle extends Verticle {
      * Configuration path
      */
     public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
-    public static final String AUTH_CONFIG_PATH = "../../../conf/conf.auth.json";
 
     public static String resourceRoot;
     public static String webRoot;
@@ -45,7 +42,6 @@ public class ReverseProxyVerticle extends Verticle {
      * Configuration parsed and hydrated
      */
     private ReverseProxyConfiguration config;
-    private AuthConfiguration authConfig;
 
     private SecretKey key;
 
@@ -72,19 +68,9 @@ public class ReverseProxyVerticle extends Verticle {
         resourceRoot = container.config().getString("resourceRoot");
         webRoot = container.config().getString("webRoot");
 
-        // TODO register update listener
-        FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_CONFIG_PATH, new AsyncResultHandler<byte[]>() {
-            @Override
-            public void handle(AsyncResult<byte[]> event) {
-                authConfig = ReverseProxyUtil.getConfig(AuthConfiguration.class, event.result());
-
-            }
-        });
-
         FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
             @Override
             public void handle(AsyncResult<byte[]> event) {
-
                 log.debug("Updating configuration based on change to [" + CONFIG_PATH + "].");
 
                 // set configuration
@@ -131,27 +117,28 @@ public class ReverseProxyVerticle extends Verticle {
     public void doStart() {
 
         // TODO lost ability to update dynamically... these handlers are constructed
-        // once, during verticle deploy, and config is not updated
+        // once, during verticle deploy, and config is not updated  (need to simply reference shared map)
 
         RouteMatcher routeMatcher = new RouteMatcher();
 
         /**
          * Handle requests for authentication
          */
-        routeMatcher.all("/auth", new AuthHandler(vertx, config, authConfig, key));
+        routeMatcher.all("/auth", new AuthHandler(vertx, config, key));
 
         /**
          * Handle requests for assets
          */
         for (String asset : config.assets) {
-            String pattern = "/." + asset;
-            routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, authConfig, false, key));
+            String pattern = ".*" + asset;
+            log.debug("Adding asset " + pattern);
+            routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, false, key));
         }
 
         /**
          * Handle all other requests
          */
-        routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, authConfig, true, key));
+        routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, true, key));
 
         final HttpServer httpsServer = vertx.createHttpServer()
                 .requestHandler(routeMatcher)

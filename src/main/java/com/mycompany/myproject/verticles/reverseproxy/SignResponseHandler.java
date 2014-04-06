@@ -1,5 +1,6 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -12,7 +13,6 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUser;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
@@ -33,7 +33,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
     private final ReverseProxyConfiguration config;
 
-    private final AuthConfiguration authConfig;
+    private final ServiceDependencies authConfig;
 
     private final String payload;
 
@@ -41,7 +41,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
     private final boolean authPosted;
 
-    public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, HttpServerRequest req, String payload,
+    public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
                                SessionToken sessionToken, boolean authPosted) {
         this.vertx = vertx;
         this.config = config;
@@ -65,9 +65,9 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
                 @Override
                 public void handle(Buffer data) {
 
-                    HttpClient signClient = vertx.createHttpClient().setHost(authConfig.getHost("engine")).setPort(authConfig.getPort("engine"));
+                    HttpClient signClient = vertx.createHttpClient().setHost(authConfig.getHost("roles")).setPort(authConfig.getPort("roles"));
                     final HttpClientRequest roleRequest = signClient.request("POST",
-                            authConfig.getRequestPath("engine", "roles"),
+                            authConfig.getRequestPath("roles", "roles"),
                             new RoleResponseHandler(vertx, config, authConfig, req, payload, sessionToken, authPosted));
 
                     String org = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");

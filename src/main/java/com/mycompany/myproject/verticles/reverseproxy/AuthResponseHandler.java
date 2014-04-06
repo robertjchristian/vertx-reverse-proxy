@@ -5,6 +5,7 @@ import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticl
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -22,7 +23,6 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.AuthConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
@@ -47,8 +47,6 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
     private final ReverseProxyConfiguration config;
 
-    private final AuthConfiguration authConfig;
-
     private final SecretKey key;
 
     private final String payload;
@@ -57,11 +55,10 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
     private final boolean authPosted;
 
-    public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, HttpServerRequest req, SecretKey key,
+    public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key,
                                String payload, SessionToken sessionToken, boolean authPosted) {
         this.vertx = vertx;
         this.config = config;
-        this.authConfig = authConfig;
         this.req = req;
         this.key = key;
         this.payload = payload;
@@ -78,7 +75,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
                 final AuthenticationResponse response = gson.fromJson(data.toString(), AuthenticationResponse.class);
 
                 if ("success".equals(response.getResponse().getAuthentication())) {
-                    log.debug("authentication successful.");
+                    log.debug("Authentication successful.");
 
                     // re-assign session token
                     sessionToken.setAuthToken(response.getResponse().getAuthenticationToken());
@@ -101,11 +98,15 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
                     } else {
                         req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
 
-                        log.debug("sending signPayload request to auth server");
-                        HttpClient signClient = vertx.createHttpClient().setHost(authConfig.getHost("auth")).setPort(authConfig.getPort("auth"));
+                        log.debug("Sending signPayload request to auth server...");
+
+                        String authHost = config.serviceDependencies.getHost("auth");
+                        int authPort = config.serviceDependencies.getPort("auth");
+                        HttpClient signClient = vertx.createHttpClient().setHost(authHost).setPort(authPort);
+
                         final HttpClientRequest signRequest = signClient.request("POST",
-                                authConfig.getRequestPath("auth", "sign"),
-                                new SignResponseHandler(vertx, config, authConfig, req, payload, sessionToken, authPosted));
+                                config.serviceDependencies.getRequestPath("auth", "sign"),
+                                new SignResponseHandler(vertx, config, config.serviceDependencies, req, payload, sessionToken, authPosted));
 
                         // TODO generate boundary
                         String signRequestBody = MultipartUtil.constructSignRequest("AaB03x",
@@ -117,10 +118,10 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
                         signRequest.write(signRequestBody);
                         signRequest.end();
 
-                        log.debug("sent signPayload request to auth server");
+                        log.debug("Sent signPayload request to authorization server.");
                     }
                 } else {
-                    log.debug("authentication failed.");
+                    log.debug("Authentication failed.");
 
                     if (data.toString().contains("No USER ACCOUNT")) {
                         FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_FAIL_NO_USER_TEMPLATE_PATH, new TemplateHandler(req, 401));
@@ -129,17 +130,19 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
                     } else {
                         req.response().setStatusCode(500);
                         req.response().setChunked(true);
-                        req.response().write("authentication failed");
+                        req.response().write("Authentication failed.");
                         req.response().end();
                     }
                 }
             }
         });
+
         cRes.endHandler(new VoidHandler() {
             public void handle() {
                 // do nothing
             }
         });
+
     }
 
     private class TemplateHandler implements AsyncResultHandler<byte[]> {
@@ -160,5 +163,6 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
             req.response().write(buffer);
             req.response().end();
         }
+
     }
 }
