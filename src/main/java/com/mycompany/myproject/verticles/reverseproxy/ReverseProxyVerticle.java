@@ -59,19 +59,15 @@ public class ReverseProxyVerticle extends Verticle {
     //
     //
 
-    protected static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
-        // TODO mind encoding
-        String fileAsString = new String(fileContents);
-
-        Gson g = new Gson();
-        T c = g.fromJson(fileAsString, clazz);
-        return c;
+    public ReverseProxyConfiguration getConfig() {
+        return config;
     }
 
     /**
      * Entry point
      */
     public void start() {
+
         // TODO clean this up
         resourceRoot = container.config().getString("resourceRoot");
         webRoot = container.config().getString("webRoot");
@@ -80,7 +76,7 @@ public class ReverseProxyVerticle extends Verticle {
         FileCacheUtil.readFile(vertx.eventBus(), log, AUTH_CONFIG_PATH, new AsyncResultHandler<byte[]>() {
             @Override
             public void handle(AsyncResult<byte[]> event) {
-                authConfig = getConfig(AuthConfiguration.class, event.result());
+                authConfig = ReverseProxyUtil.getConfig(AuthConfiguration.class, event.result());
 
             }
         });
@@ -92,8 +88,7 @@ public class ReverseProxyVerticle extends Verticle {
                 log.debug("Updating configuration based on change to [" + CONFIG_PATH + "].");
 
                 // set configuration
-                config = getConfig(ReverseProxyConfiguration.class, event.result());
-
+                config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class, event.result());
 
                 // register update listener     (TODO isolate this code for readability)
                 String channel = FileCacheVerticle.FILE_CACHE_CHANNEL + CONFIG_PATH;
@@ -108,7 +103,7 @@ public class ReverseProxyVerticle extends Verticle {
                             public void handle(AsyncResult<byte[]> event) {
 
                                 // set configuration
-                                config = getConfig(ReverseProxyConfiguration.class, event.result());
+                                config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class, event.result());
 
                             }
                         });

@@ -40,7 +40,7 @@ public class FileCacheVerticle extends Verticle {
      */
     public void scheduleUpdate(final FileCacheImpl cache, final long refreshIntervalMillis) {
 
-        log.debug("Starting FileCache update...");
+        log.debug("Starting FileCacheMap update...");
 
         cache.updateCache(new AsyncResultHandler<Set<FileCacheEntry>>() {
             @Override
@@ -77,7 +77,7 @@ public class FileCacheVerticle extends Verticle {
         final EventBus bus = vertx.eventBus();
 
         // set the cache reference
-        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx().fileSystem());
+        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx());
 
         /**
          * Listen for "put" requests on event bus on channel FILE_CACHE_CHANNEL
