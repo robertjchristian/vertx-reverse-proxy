@@ -16,7 +16,7 @@ import java.util.Set;
  * Supports asynchronous file caching and updating.  Clients access the cache using
  * the event bus protocol.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCacheVerticle extends Verticle {
 

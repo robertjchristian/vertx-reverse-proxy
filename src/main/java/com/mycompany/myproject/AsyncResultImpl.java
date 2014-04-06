@@ -3,12 +3,12 @@ package com.mycompany.myproject;
 import org.vertx.java.core.AsyncResult;
 
 /**
- * Generic Async Result implementaion
+ * Generic Asynchronous Result implementation
  * <p/>
  * This is a convenience class used to help cut down on anonymous instantiations
  * of AsyncResult, which can be verbose and plentiful when doing a lot of async.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class AsyncResultImpl<T> implements AsyncResult<T> {
 

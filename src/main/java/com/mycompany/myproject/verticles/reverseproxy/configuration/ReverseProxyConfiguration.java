@@ -9,7 +9,7 @@ import java.util.Set;
 /**
  * Configuration
  *
- * @author Robert Christian
+ * @author robertjchristian
  */
 public class ReverseProxyConfiguration {
 
@@ -21,7 +21,7 @@ public class ReverseProxyConfiguration {
     public ReverseProxyConfiguration() {
 
         // "assets" may be accessed without authentication/acl
-        assets = new String[] {"ico, png, jpg, jpeg, gif, css, js, txt"};
+        assets = new String[]{"ico, png, jpg, jpeg, gif, css, js, txt"};
 
         ssl = new SSL();
 

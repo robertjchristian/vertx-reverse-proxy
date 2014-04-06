@@ -27,176 +27,168 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 
 
 /**
- * Created with IntelliJ IDEA.
- * User: rob
- * Date: 3/28/14
- * Time: 11:34 AM
- * To change this template use File | Settings | File Templates.
+ * @author hpark
  */
 public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
-	/**
-	 * Log
-	 */
-	private static final Logger log = LoggerFactory.getLogger(ReverseProxyHandler.class);
+    /**
+     * Log
+     */
+    private static final Logger log = LoggerFactory.getLogger(ReverseProxyHandler.class);
 
-	/**
-	 * Configuration
-	 */
-	private final ReverseProxyConfiguration config;
+    /**
+     * Configuration
+     */
+    private final ReverseProxyConfiguration config;
 
-	private final AuthConfiguration authConfig;
+    private final AuthConfiguration authConfig;
 
-	/**
-	 * Vert.x
-	 */
-	private final Vertx vertx;
+    /**
+     * Vert.x
+     */
+    private final Vertx vertx;
 
-	/**
-	 * Requires Auth/ACL
-	 */
-	private final boolean requiresAuthAndACL;
+    /**
+     * Requires Auth/ACL
+     */
+    private final boolean requiresAuthAndACL;
 
-	/**
-	 * 
-	 */
-	private final SecretKey key;
+    /**
+     *
+     */
+    private final SecretKey key;
 
-	public ReverseProxyHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, boolean requiresAuthAndACL, SecretKey key) {
-		this.vertx = vertx;
-		this.config = config;
-		this.authConfig = authConfig;
-		this.requiresAuthAndACL = requiresAuthAndACL;
-		this.key = key;
-	}
+    public ReverseProxyHandler(Vertx vertx, ReverseProxyConfiguration config, AuthConfiguration authConfig, boolean requiresAuthAndACL, SecretKey key) {
+        this.vertx = vertx;
+        this.config = config;
+        this.authConfig = authConfig;
+        this.requiresAuthAndACL = requiresAuthAndACL;
+        this.key = key;
+    }
 
-	@Override
-	public void handle(final HttpServerRequest req) {
+    @Override
+    public void handle(final HttpServerRequest req) {
 
-		// TODO - Need to recreate session for every request.  Should guard with "requiresAuthAndACL"
-		// done in Sign Handler
+        // TODO - Need to recreate session for every request.  Should guard with "requiresAuthAndACL"
+        // done in Sign Handler
 
-		/**
-		 * PARSE REQUEST
-		 */
-		log.info("Handling incoming proxy request:  " + req.method() + " " + req.uri());
-		log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
+        /**
+         * PARSE REQUEST
+         */
+        log.info("Handling incoming proxy request:  " + req.method() + " " + req.uri());
+        log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
 
-		if (config == null) {
-			log.error("No config found.");
-			sendFailure(req, "Internal Error");
-			return;
-		}
+        if (config == null) {
+            log.error("No config found.");
+            sendFailure(req, "Internal Error");
+            return;
+        }
 
-		// get rewrite rules as POJO
-		if (config.rewriteRules == null) {
-			log.error("No rewrite rules found.");
-			sendFailure(req, "Internal Error");
-			return;
-		}
+        // get rewrite rules as POJO
+        if (config.rewriteRules == null) {
+            log.error("No rewrite rules found.");
+            sendFailure(req, "Internal Error");
+            return;
+        }
 
-		// TODO consuming whole payload in memory.
-		final Buffer payloadBuffer = new Buffer();
-		req.dataHandler(new Handler<Buffer>() {
+        // TODO consuming whole payload in memory.
+        final Buffer payloadBuffer = new Buffer();
+        req.dataHandler(new Handler<Buffer>() {
 
-			@Override
-			public void handle(Buffer buffer) {
-				payloadBuffer.appendBuffer(buffer);
-			}
+            @Override
+            public void handle(Buffer buffer) {
+                payloadBuffer.appendBuffer(buffer);
+            }
 
-		});
-		req.endHandler(new VoidHandler() {
+        });
+        req.endHandler(new VoidHandler() {
 
-			@Override
-			protected void handle() {
+            @Override
+            protected void handle() {
 
-				Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
-				/**
-				 * CHECK FOR SESSION TOKEN
-				 */
-				Exception exception = null;
-				SessionToken sessionToken = null;
-				String authRequestStr = "";
-				String sessionTokenStr = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
-				String[] basicAuthHeader = ReverseProxyUtil.getAuthFromBasicAuthHeader(req.headers());
+                Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
+                /**
+                 * CHECK FOR SESSION TOKEN
+                 */
+                Exception exception = null;
+                SessionToken sessionToken = null;
+                String authRequestStr = "";
+                String sessionTokenStr = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
+                String[] basicAuthHeader = ReverseProxyUtil.getAuthFromBasicAuthHeader(req.headers());
 
-				if ((sessionTokenStr != null && !sessionTokenStr.isEmpty()) || (basicAuthHeader != null && basicAuthHeader.length == 2)) {
-					if (sessionTokenStr != null && !sessionTokenStr.isEmpty()) {
-						log.debug(String.format("Session token found. Authenticating using authentication token."));
-						byte[] decryptedSession = null;
-						try {
-							Cipher c = Cipher.getInstance("AES");
-							c.init(Cipher.DECRYPT_MODE, key);
-							decryptedSession = c.doFinal(Base64.decode(sessionTokenStr));
+                if ((sessionTokenStr != null && !sessionTokenStr.isEmpty()) || (basicAuthHeader != null && basicAuthHeader.length == 2)) {
+                    if (sessionTokenStr != null && !sessionTokenStr.isEmpty()) {
+                        log.debug(String.format("Session token found. Authenticating using authentication token."));
+                        byte[] decryptedSession = null;
+                        try {
+                            Cipher c = Cipher.getInstance("AES");
+                            c.init(Cipher.DECRYPT_MODE, key);
+                            decryptedSession = c.doFinal(Base64.decode(sessionTokenStr));
 
-							sessionToken = gson.fromJson(new String(decryptedSession), SessionToken.class);
+                            sessionToken = gson.fromJson(new String(decryptedSession), SessionToken.class);
 
-							AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", "", "");
-							AuthenticateRequest request = new AuthenticateRequest();
-							request.setAuthenticationToken(sessionToken.getAuthToken());
-							request.getAuthentication().getAuthRequestList().add(authRequest);
-							authRequestStr = gson.toJson(request);
-						}
-						catch (Exception e) {
-							exception = e;
-						}
-					}
-					else {
-						log.debug("session token not found. basic auth header found.");
-						AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", basicAuthHeader[0], basicAuthHeader[1]);
-						AuthenticateRequest request = new AuthenticateRequest();
-						request.getAuthentication().getAuthRequestList().add(authRequest);
-						authRequestStr = gson.toJson(request);
+                            AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", "", "");
+                            AuthenticateRequest request = new AuthenticateRequest();
+                            request.setAuthenticationToken(sessionToken.getAuthToken());
+                            request.getAuthentication().getAuthRequestList().add(authRequest);
+                            authRequestStr = gson.toJson(request);
+                        } catch (Exception e) {
+                            exception = e;
+                        }
+                    } else {
+                        log.debug("session token not found. basic auth header found.");
+                        AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", basicAuthHeader[0], basicAuthHeader[1]);
+                        AuthenticateRequest request = new AuthenticateRequest();
+                        request.getAuthentication().getAuthRequestList().add(authRequest);
+                        authRequestStr = gson.toJson(request);
 
-						sessionToken = new SessionToken(basicAuthHeader[0], null, null);
-					}
+                        sessionToken = new SessionToken(basicAuthHeader[0], null, null);
+                    }
 
-					if (exception == null) {
-						log.debug("Sending auth request to authentication server.");
-						HttpClient authClient = vertx.createHttpClient().setHost(authConfig.getHost("auth")).setPort(authConfig.getPort("auth"));
-						final HttpClientRequest authReq = authClient.request("POST", authConfig.getRequestPath("auth", "auth"), new AuthResponseHandler(vertx,
-								config,
-								authConfig,
-								req,
-								key,
-								payloadBuffer.toString("UTF-8"),
-								sessionToken,
-								false));
+                    if (exception == null) {
+                        log.debug("Sending auth request to authentication server.");
+                        HttpClient authClient = vertx.createHttpClient().setHost(authConfig.getHost("auth")).setPort(authConfig.getPort("auth"));
+                        final HttpClientRequest authReq = authClient.request("POST", authConfig.getRequestPath("auth", "auth"), new AuthResponseHandler(vertx,
+                                config,
+                                authConfig,
+                                req,
+                                key,
+                                payloadBuffer.toString("UTF-8"),
+                                sessionToken,
+                                false));
 
-						authReq.setChunked(true);
-						authReq.write(authRequestStr);
-						authReq.end();
-					}
-					else {
-						req.response().setStatusCode(500);
-						req.response().setChunked(true);
-						req.response().write(exception.getMessage());
-						req.response().end();
-					}
-				}
-				else {
-					log.info("session token and basic auth header not found. redirecting to login page");
+                        authReq.setChunked(true);
+                        authReq.write(authRequestStr);
+                        authReq.end();
+                    } else {
+                        req.response().setStatusCode(500);
+                        req.response().setChunked(true);
+                        req.response().write(exception.getMessage());
+                        req.response().end();
+                    }
+                } else {
+                    log.info("session token and basic auth header not found. redirecting to login page");
 
-					// return login page
-					FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "auth/login.html", new RedirectHandler(vertx, req));
-				}
-			}
-		});
-	}
+                    // return login page
+                    FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "auth/login.html", new RedirectHandler(vertx, req));
+                }
+            }
+        });
+    }
 
-	/**
-	 * Sends a failure with message and ends connection.
-	 *
-	 * @param req - HTTP Request
-	 * @param msg - Message returned to client
-	 */
-	public static void sendFailure(final HttpServerRequest req, final String msg) {
-		log.error(msg);
-		req.response().setChunked(true);
-		req.response().setStatusCode(500);
-		req.response().setStatusMessage("Internal Server Error.");
-		req.response().write(msg);
-		req.response().end();
-	}
+    /**
+     * Sends a failure with message and ends connection.
+     *
+     * @param req - HTTP Request
+     * @param msg - Message returned to client
+     */
+    public static void sendFailure(final HttpServerRequest req, final String msg) {
+        log.error(msg);
+        req.response().setChunked(true);
+        req.response().setStatusCode(500);
+        req.response().setStatusMessage("Internal Server Error.");
+        req.response().write(msg);
+        req.response().end();
+    }
 
 }

@@ -15,56 +15,56 @@ import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUserList;
 
 public class EngineVerticle extends Verticle {
 
-	private static final Logger log = LoggerFactory.getLogger(EngineVerticle.class);
+    private static final Logger log = LoggerFactory.getLogger(EngineVerticle.class);
 
-	public void start() {
-		String rawUserList = vertx.fileSystem().readFileSync("mock/engine/application_user_list.json").toString();
-		final Gson gson = new Gson();
-		final ApplicationUserList userList = gson.fromJson(rawUserList, ApplicationUserList.class);
+    public void start() {
+        String rawUserList = vertx.fileSystem().readFileSync("mock/engine/application_user_list.json").toString();
+        final Gson gson = new Gson();
+        final ApplicationUserList userList = gson.fromJson(rawUserList, ApplicationUserList.class);
 
-		RouteMatcher routeMatcher = new RouteMatcher();
-		routeMatcher.post("/roles", new Handler<HttpServerRequest>() {
+        RouteMatcher routeMatcher = new RouteMatcher();
+        routeMatcher.post("/roles", new Handler<HttpServerRequest>() {
 
-			@Override
-			public void handle(final HttpServerRequest req) {
+            @Override
+            public void handle(final HttpServerRequest req) {
 
-				log.info("Role request received");
+                log.info("Role request received");
 
-				req.dataHandler(new Handler<Buffer>() {
+                req.dataHandler(new Handler<Buffer>() {
 
-					@Override
-					public void handle(Buffer data) {
-						ApplicationUser requestedUser = gson.fromJson(data.toString(), ApplicationUser.class);
-						boolean found = false;
-						for (ApplicationUser existingAppUser : userList.getApplicationUserList()) {
+                    @Override
+                    public void handle(Buffer data) {
+                        ApplicationUser requestedUser = gson.fromJson(data.toString(), ApplicationUser.class);
+                        boolean found = false;
+                        for (ApplicationUser existingAppUser : userList.getApplicationUserList()) {
 
-							if (existingAppUser.getUser().equals(requestedUser.getUser())
-									&& existingAppUser.getOrganization().equals(requestedUser.getOrganization())) {
-								found = true;
+                            if (existingAppUser.getUser().equals(requestedUser.getUser())
+                                    && existingAppUser.getOrganization().equals(requestedUser.getOrganization())) {
+                                found = true;
 
-								ApplicationUser roles = new ApplicationUser(existingAppUser.getRoles());
+                                ApplicationUser roles = new ApplicationUser(existingAppUser.getRoles());
 
-								req.response().setChunked(true);
-								req.response().write(gson.toJson(roles));
-								req.response().end();
-							}
-						}
-						if (!found) {
-							req.response().setChunked(true);
-							req.response().write(String.format("unable to find user %s@%s", requestedUser.getUser(), requestedUser.getOrganization()));
-							req.response().end();
-						}
-					}
-				});
-				req.endHandler(new VoidHandler() {
+                                req.response().setChunked(true);
+                                req.response().write(gson.toJson(roles));
+                                req.response().end();
+                            }
+                        }
+                        if (!found) {
+                            req.response().setChunked(true);
+                            req.response().write(String.format("unable to find user %s@%s", requestedUser.getUser(), requestedUser.getOrganization()));
+                            req.response().end();
+                        }
+                    }
+                });
+                req.endHandler(new VoidHandler() {
 
-					@Override
-					public void handle() {
-					}
-				});
-			}
-		});
+                    @Override
+                    public void handle() {
+                    }
+                });
+            }
+        });
 
-		vertx.createHttpServer().requestHandler(routeMatcher).listen(9002);
-	}
+        vertx.createHttpServer().requestHandler(routeMatcher).listen(9002);
+    }
 }

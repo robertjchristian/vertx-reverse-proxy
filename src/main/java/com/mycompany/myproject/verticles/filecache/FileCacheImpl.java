@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentMap;
  * <p/>
  * Core implementation.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCacheImpl {
 

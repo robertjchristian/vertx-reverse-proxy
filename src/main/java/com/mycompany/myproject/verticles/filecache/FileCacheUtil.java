@@ -11,10 +11,10 @@ import org.vertx.java.core.logging.Logger;
 /**
  * FileCacheUtil
  * <p/>
- * Submits async fetch request to FileCache (may or may not incur i/o), fires event on finish,
+ * Submits asynchronous fetch request to FileCache (may or may not incur i/o), fires event on finish,
  * and returns JSON representation of file.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCacheUtil {
 

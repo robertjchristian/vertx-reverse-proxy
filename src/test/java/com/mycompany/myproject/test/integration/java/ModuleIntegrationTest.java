@@ -41,80 +41,80 @@ import org.vertx.testtools.TestVerticle;
  */
 public class ModuleIntegrationTest extends TestVerticle {
 
-	// TODO pick up config on the fly (changes currently require restart of verticle)
+    // TODO pick up config on the fly (changes currently require restart of verticle)
 
-	@Test
-	public void dummyTest() {
-		// do nothing
-		testComplete();
-	}
+    @Test
+    public void dummyTest() {
+        // do nothing
+        testComplete();
+    }
 
-	//@Test
-	public void testProxyServer() {
+    //@Test
+    public void testProxyServer() {
 
-		container.logger().info("Testing proxy server...");
+        container.logger().info("Testing proxy server...");
 
-		// create ssl client. trust all for testing purpose
-		final HttpClient client = vertx.createHttpClient()
-				.setSSL(true)
-				.setTrustAll(true)
-				.setVerifyHost(false)
-				.setHost("localhost")
-				.setPort(8989)
-				.setConnectTimeout(5);
+        // create ssl client. trust all for testing purpose
+        final HttpClient client = vertx.createHttpClient()
+                .setSSL(true)
+                .setTrustAll(true)
+                .setVerifyHost(false)
+                .setHost("localhost")
+                .setPort(8989)
+                .setConnectTimeout(5);
 
-		HttpClientRequest request = client.get("/google", new Handler<HttpClientResponse>() {
-			public void handle(final HttpClientResponse resp) {
+        HttpClientRequest request = client.get("/google", new Handler<HttpClientResponse>() {
+            public void handle(final HttpClientResponse resp) {
 
-				// WARN:  Body Handler consumes to memory first... so large enough responses
-				// will break this... http://vertx.io/core_manual_java.html
-				resp.bodyHandler(new Handler<Buffer>() {
-					public void handle(Buffer body) {
+                // WARN:  Body Handler consumes to memory first... so large enough responses
+                // will break this... http://vertx.io/core_manual_java.html
+                resp.bodyHandler(new Handler<Buffer>() {
+                    public void handle(Buffer body) {
 
-						// The entire response body has been received
-						//container.logger().info("The total body received was " + body.length() + " bytes");
-						container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
+                        // The entire response body has been received
+                        //container.logger().info("The total body received was " + body.length() + " bytes");
+                        container.logger().info("Got a response: \n" + resp.statusCode() + " " + resp.statusMessage() + " - \n" + body.toString());
 
-						// close the client
-						client.close();
+                        // close the client
+                        client.close();
 
-						// tell event bus we are done
-						testComplete();
+                        // tell event bus we are done
+                        testComplete();
 
-					}
-				});
+                    }
+                });
 
-			}
-		});
-		request.end();
-	}
+            }
+        });
+        request.end();
+    }
 
-	@Override
-	public void start() {
+    @Override
+    public void start() {
 
-		// Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
-		initialize();
+        // Make sure we call initialize() - this sets up the assert stuff so assert functionality works correctly
+        initialize();
 
-		// Deploy the module - the System property `vertx.modulename` will contain the name of the module so you
-		// don't have to hardecode it in your tests
+        // Deploy the module - the System property `vertx.modulename` will contain the name of the module so you
+        // don't have to hardecode it in your tests
 
-		JsonObject config = new JsonObject();
-		config.putString("resourceRoot", "../../../resources/");
-		config.putString("webRoot", "../../../resources/web/");
+        JsonObject config = new JsonObject();
+        config.putString("resourceRoot", "../../../resources/");
+        config.putString("webRoot", "../../../resources/web/");
 
-		container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
-			@Override
-			public void handle(AsyncResult<String> asyncResult) {
-				// Deployment is asynchronous and this this handler will be called when it's complete (or failed)
-				if (asyncResult.failed()) {
-					container.logger().error(asyncResult.cause());
-				}
-				assertTrue(asyncResult.succeeded());
-				assertNotNull("deploymentID should not be null", asyncResult.result());
+        container.deployModule(System.getProperty("vertx.modulename"), config, new AsyncResultHandler<String>() {
+            @Override
+            public void handle(AsyncResult<String> asyncResult) {
+                // Deployment is asynchronous and this this handler will be called when it's complete (or failed)
+                if (asyncResult.failed()) {
+                    container.logger().error(asyncResult.cause());
+                }
+                assertTrue(asyncResult.succeeded());
+                assertNotNull("deploymentID should not be null", asyncResult.result());
 
-				// If deployed correctly then start the tests!
-				startTests();
-			}
-		});
-	}
+                // If deployed correctly then start the tests!
+                startTests();
+            }
+        });
+    }
 }

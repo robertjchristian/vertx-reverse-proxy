@@ -12,7 +12,7 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
  * <p/>
  * Used by the file cache verticle to handle event-bus-driven cache messages.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCachePutRequestHandler implements Handler<Message<String>> {
 

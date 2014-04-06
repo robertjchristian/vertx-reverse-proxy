@@ -13,7 +13,7 @@ import java.util.Set;
  * This event should be triggered once *all* of the pending updates have been
  * assigned and subsequently processed.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 class FileCacheUpdateResult implements AsyncResult<Set<FileCacheEntry>> {
 
