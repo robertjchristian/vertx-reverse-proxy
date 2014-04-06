@@ -4,10 +4,9 @@ import com.google.gson.Gson;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Configuration
+ * Reverse Proxy Configuration
  *
  * @author robertjchristian
  */
@@ -16,6 +15,7 @@ public class ReverseProxyConfiguration {
     public SSL ssl;
     public Map<String, RewriteRule> rewriteRules;
     public String[] assets;
+    public ServiceDependencies serviceDependencies;
 
     public ReverseProxyConfiguration() {
 
@@ -32,6 +32,12 @@ public class ReverseProxyConfiguration {
         ssl.proxyHttpsPort = 8989;
         ssl.keyStorePath = "../../../server-keystore.jks";
         ssl.keyStorePassword = "password";
+
+        // service dependencies
+        serviceDependencies = new ServiceDependencies();
+        Map<String, String> paths = new HashMap<>();
+        paths.put("auth", "/auth");
+        serviceDependencies.dependencies.put("auth", new ServiceDescriptor("localhost", 8000, paths));
 
         // rewrite rules
         rewriteRules = new HashMap<String, RewriteRule>();
