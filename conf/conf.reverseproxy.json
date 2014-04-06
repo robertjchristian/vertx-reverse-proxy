@@ -7,7 +7,42 @@
         "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
-    "assets":["ico, png, jpg, jpeg, gif, css, js, txt"],
+    "serviceDependencies": {
+        "dependencies": {
+            "auth": {
+                "host": "localhost",
+                "port": 9000,
+                "requestPaths": {
+                    "sign": "/sign",
+                    "auth": "/authenticate"
+                }
+            },
+            "acl": {
+                "host": "localhost",
+                "port": 9001,
+                "requestPaths": {
+                    "manifest": "/verifyAndGetManifest"
+                }
+            },
+            "roles": {
+                "host": "localhost",
+                "port": 9002,
+                "requestPaths": {
+                    "roles": "/roles"
+                }
+            }
+        }
+    },
+    "assets": [
+        "ico",
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "css",
+        "js",
+        "txt"
+    ],
     "rewriteRules": {
         "sn": {
             "protocol": "http",
@@ -19,15 +54,10 @@
             "host": "google.com",
             "port": 80
         },
-        "acl": {
-            "protocol": "http",
-            "host": "localhost",
-            "port": 9001
-        },
-        "um": {
-            "protocol": "http",
-            "host": "localhost",
-            "port": 9000
+        "hn": {
+            "protocol": "https",
+            "host": "news.ycombinator.com",
+            "port": 80
         }
     }
 
