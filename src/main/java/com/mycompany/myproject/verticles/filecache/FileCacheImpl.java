@@ -3,6 +3,7 @@ package com.mycompany.myproject.verticles.filecache;
 import com.mycompany.myproject.AsyncResultImpl;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
+import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.file.FileProps;
 import org.vertx.java.core.file.FileSystem;
@@ -26,24 +27,30 @@ public class FileCacheImpl {
      * Log
      */
     private static final Logger log = LoggerFactory.getLogger(FileCacheImpl.class);
+
     /**
      * Filesystem reference
      */
     private FileSystem fs;
+
+    /**
+     * Name of shared cache map
+     */
+    public final String DEFAULT_MAP_NAME = "vertx.file-cache.map";
+
     /**
      * The cache itself
      */
-    private ConcurrentMap<String, FileCacheEntry> cacheMap;
+    private final ConcurrentMap<String, FileCacheEntry> cacheMap;
 
     /**
      * Constructor
      *
-     * @param fileSystem - Filesystem reference
      */
-    public FileCacheImpl(FileSystem fileSystem) {
+    public FileCacheImpl(Vertx vertx) {
         super();
-        this.fs = fileSystem;
-        this.cacheMap = new ConcurrentHashMap<String, FileCacheEntry>();
+        this.fs = vertx.fileSystem();
+        this.cacheMap = vertx.sharedData().getMap(DEFAULT_MAP_NAME);
     }
 
     /**
