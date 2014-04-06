@@ -27,8 +27,15 @@ public class FileCacheVerticle extends Verticle {
 
     /**
      * Listens on this channel for cache requests
+     *
+     * Note:  This is also used as a prefix for update notifications (CHANNEL + KEY)
      */
     public static final String FILE_CACHE_CHANNEL = "file.cache.channel";
+
+    /**
+     * Name of shared cache map
+     */
+    public static final String FILE_CACHE_MAP = "file.cache.map";
 
     /**
      * Delay in milliseconds between cache updates

@@ -34,11 +34,6 @@ public class FileCacheImpl {
     private FileSystem fs;
 
     /**
-     * Name of shared cache map
-     */
-    public final String DEFAULT_MAP_NAME = "vertx.file-cache.map";
-
-    /**
      * The cache itself
      */
     private final ConcurrentMap<String, FileCacheEntry> cacheMap;
@@ -50,7 +45,7 @@ public class FileCacheImpl {
     public FileCacheImpl(Vertx vertx) {
         super();
         this.fs = vertx.fileSystem();
-        this.cacheMap = vertx.sharedData().getMap(DEFAULT_MAP_NAME);
+        this.cacheMap = vertx.sharedData().getMap(FileCacheVerticle.FILE_CACHE_MAP);
     }
 
     /**
