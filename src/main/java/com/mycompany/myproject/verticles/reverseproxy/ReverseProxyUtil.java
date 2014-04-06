@@ -21,6 +21,15 @@ public class ReverseProxyUtil {
 
     private static final String DEFAULT_COOKIE_DELIMITER = ";";
 
+    public static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {
+        // TODO mind encoding
+        String fileAsString = new String(fileContents);
+
+        Gson g = new Gson();
+        T c = g.fromJson(fileAsString, clazz);
+        return c;
+    }
+
     public static String getHeadersAsJSON(MultiMap headers, String filter) {
         java.util.Map<String, String> matched = new HashMap<String, String>();
         for (String key : headers.names()) {
