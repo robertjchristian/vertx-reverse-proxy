@@ -10,7 +10,6 @@ import java.util.TimeZone;
 
 import javax.crypto.SecretKey;
 
-import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
@@ -32,7 +31,7 @@ import com.mycompany.myproject.verticles.reverseproxy.model.User;
 /**
  * @author robertjchristian
  */
-public class AuthHandler implements Handler<HttpServerRequest> {
+public class AuthRequestHandler implements Handler<HttpServerRequest> {
 
     public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
     public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
@@ -41,7 +40,7 @@ public class AuthHandler implements Handler<HttpServerRequest> {
     /**
      * Log
      */
-    private static final Logger log = LoggerFactory.getLogger(AuthHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(AuthRequestHandler.class);
 
     /**
      * Configuration
@@ -58,7 +57,7 @@ public class AuthHandler implements Handler<HttpServerRequest> {
      */
     private final SecretKey key;
 
-    public AuthHandler(Vertx vertx, ReverseProxyConfiguration config, SecretKey key) {
+    public AuthRequestHandler(Vertx vertx, ReverseProxyConfiguration config, SecretKey key) {
         this.vertx = vertx;
         this.config = config;
         this.key = key;
