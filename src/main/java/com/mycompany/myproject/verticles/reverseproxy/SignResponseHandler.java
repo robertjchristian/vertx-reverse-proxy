@@ -1,6 +1,7 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
+import javax.crypto.SecretKey;
+
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -22,40 +23,40 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class SignResponseHandler implements Handler<HttpClientResponse> {
 
-    /**
-     * Log
-     */
-    private static final Logger log = LoggerFactory.getLogger(SignResponseHandler.class);
+	/**
+	 * Log
+	 */
+	private static final Logger log = LoggerFactory.getLogger(SignResponseHandler.class);
 
-    private final HttpServerRequest req;
+	private final HttpServerRequest req;
 
-    private final Vertx vertx;
+	private final Vertx vertx;
 
-    private final ReverseProxyConfiguration config;
+	private final ReverseProxyConfiguration config;
 
-    private final ServiceDependencies authConfig;
+	private final SecretKey key;
 
-    private final String payload;
+	private final String payload;
 
-    private final SessionToken sessionToken;
+	private final SessionToken sessionToken;
 
-    private final boolean authPosted;
+	private final boolean authPosted;
 
-    public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
-                               SessionToken sessionToken, boolean authPosted) {
-        this.vertx = vertx;
-        this.config = config;
-        this.authConfig = authConfig;
-        this.req = req;
-        this.payload = payload;
-        this.sessionToken = sessionToken;
-        this.authPosted = authPosted;
-    }
+	public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+			boolean authPosted) {
+		this.vertx = vertx;
+		this.config = config;
+		this.req = req;
+		this.key = key;
+		this.payload = payload;
+		this.sessionToken = sessionToken;
+		this.authPosted = authPosted;
+	}
 
-    @Override
-    public void handle(final HttpClientResponse res) {
+	@Override
+	public void handle(final HttpClientResponse res) {
 
-        log.debug("Received response from auth server for sign request");
+		log.debug("Received response from auth server for sign request");
 
 		// payload signing successful
 		res.dataHandler(new Handler<Buffer>() {
@@ -67,11 +68,11 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 					log.debug("Payload signing successful. Fetching role from engine");
 
 					HttpClient signClient = vertx.createHttpClient()
-							.setHost(serviceDependencyConfig.getHost("engine"))
-							.setPort(serviceDependencyConfig.getPort("engine"));
+							.setHost(config.serviceDependencies.getHost("roles"))
+							.setPort(config.serviceDependencies.getPort("roles"));
 					final HttpClientRequest roleRequest = signClient.request("POST",
-							serviceDependencyConfig.getRequestPath("engine", "roles"),
-							new RoleResponseHandler(vertx, req, payload, sessionToken, authPosted));
+							config.serviceDependencies.getRequestPath("roles", "roles"),
+							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
 
 					String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
 					ApplicationUser appUser = new ApplicationUser(sessionToken.getUsername(), sid);
@@ -84,7 +85,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 				else {
 					log.debug("Payload signing failed.");
 
-					ReverseProxyHandler.sendAuthError(vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
 					return;
 				}
 			}

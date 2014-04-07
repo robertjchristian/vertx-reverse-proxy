@@ -21,7 +21,7 @@ public class ReverseProxyConfiguration {
 	public String[] assets;
 	public String defaultService;
 	public String maxPayloadSizeBytes;
-    public ServiceDependencies serviceDependencies;
+	public ServiceDependencies serviceDependencies;
 
 	public ReverseProxyConfiguration() {
 
@@ -39,18 +39,18 @@ public class ReverseProxyConfiguration {
 		ssl.keyStorePath = "../../../server-keystore.jks";
 		ssl.keyStorePassword = "password";
 
-        // service dependencies
-        serviceDependencies = new ServiceDependencies();
-        Map<String, String> paths = new HashMap<>();
-        paths.put("auth", "/auth");
-        serviceDependencies.dependencies.put("auth", new ServiceDescriptor("localhost", 8000, paths));
+		// service dependencies
+		serviceDependencies = new ServiceDependencies();
+		Map<String, String> paths = new HashMap<>();
+		paths.put("auth", "/auth");
+		serviceDependencies.dependencies.put("auth", new ServiceDescriptor("localhost", 8000, paths));
 
-        // rewrite rules
-        rewriteRules = new HashMap<String, RewriteRule>();
-        rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
-        rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
-        rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
-        rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
+		// rewrite rules
+		rewriteRules = new HashMap<String, RewriteRule>();
+		rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
+		rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
+		rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
+		rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
 
 	}
 
@@ -96,7 +96,7 @@ public class ReverseProxyConfiguration {
 		configurationB.rewriteRules.remove("google");
 		System.out.println(g.toJson(configurationB));
 
-		configurationB.maxPayloadSizeBytes = "128m";
+		configurationB.maxPayloadSizeBytes = "128k";
 		System.out.println(configurationB.getMaxPayloadSizeBytesInNumber());
 	}
 }

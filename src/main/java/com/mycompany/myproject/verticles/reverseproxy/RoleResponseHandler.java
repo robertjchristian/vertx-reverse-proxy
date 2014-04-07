@@ -1,6 +1,7 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
+import javax.crypto.SecretKey;
+
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -20,32 +21,32 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class RoleResponseHandler implements Handler<HttpClientResponse> {
 
-    private static final Logger log = LoggerFactory.getLogger(RoleResponseHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(RoleResponseHandler.class);
 
-    private final HttpServerRequest req;
+	private final HttpServerRequest req;
 
-    private final Vertx vertx;
+	private final Vertx vertx;
 
-    private final ReverseProxyConfiguration config;
+	private final ReverseProxyConfiguration config;
 
-    private final ServiceDependencies authConfig;
+	private final SecretKey key;
 
-    private final String payload;
+	private final String payload;
 
-    private final SessionToken sessionToken;
+	private final SessionToken sessionToken;
 
-    private final boolean authPosted;
+	private final boolean authPosted;
 
-    public RoleResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
-                               SessionToken sessionToken, boolean authPosted) {
-        this.req = req;
-        this.vertx = vertx;
-        this.config = config;
-        this.authConfig = authConfig;
-        this.payload = payload;
-        this.sessionToken = sessionToken;
-        this.authPosted = authPosted;
-    }
+	public RoleResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+			boolean authPosted) {
+		this.req = req;
+		this.vertx = vertx;
+		this.config = config;
+		this.key = key;
+		this.payload = payload;
+		this.sessionToken = sessionToken;
+		this.authPosted = authPosted;
+	}
 
 	@Override
 	public void handle(final HttpClientResponse res) {
@@ -58,24 +59,24 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 				if (res.statusCode() >= 200 && res.statusCode() < 300) {
 					log.debug("Successfully fetched role. Getting manifest from ACL");
 					HttpClient signClient = vertx.createHttpClient()
-							.setHost(serviceDependencyConfig.getHost("acl"))
-							.setPort(serviceDependencyConfig.getPort("acl"));
+							.setHost(config.serviceDependencies.getHost("acl"))
+							.setPort(config.serviceDependencies.getPort("acl"));
 					final HttpClientRequest roleRequest = signClient.request("POST",
-							serviceDependencyConfig.getRequestPath("acl", "manifest"),
-							new ManifestResponseHandler(vertx, req, payload, sessionToken, authPosted));
+							config.serviceDependencies.getRequestPath("acl", "manifest"),
+							new ManifestResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
 
-                    // TODO construct manifest request
+					// TODO construct manifest request
 
-                    roleRequest.setChunked(true);
-                    roleRequest.write("");
-                    roleRequest.end();
+					roleRequest.setChunked(true);
+					roleRequest.write("");
+					roleRequest.end();
 
 					log.debug("Sent get manifest request from acl");
 				}
 				else {
 					log.debug("Failed to fetch role.");
 
-					ReverseProxyHandler.sendAuthError(vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
 					return;
 				}
 			}

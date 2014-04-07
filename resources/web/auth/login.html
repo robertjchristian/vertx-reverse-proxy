@@ -6,34 +6,43 @@
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
-    <script type="text/javascript">
-        $(document).ready(function () {
-            $('#loginForm').submit(function () {
-                var username = $('#userId').val();
-                var password = $('#password').val();
-                var request = {
-                    "userId": username,
-                    "password": password
-                };
-
-                $.ajax({
-                    data: JSON.stringify(request),
-                    contentType: 'applicaton/json',
-                    url: 'https://localhost:8989/auth',
-                    type: 'POST',
-                    success: function (data) {
-                        $('html').html(data.getElementById("body"));
-                    },
-                    error: function (data) {
-                        console.log(data);
-                    },
-                });
-
-                return false;
-            });
-        });
-    </script>
+  	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+	<script type="text/javascript">
+		$(document).ready(function() {
+			$('#loginForm').submit(function() {
+				var username = $('#userId').val();
+				var password = $('#password').val();
+				var request = { 
+					"userId" : username, 
+					"password" : password 
+				};
+				
+				var queryString = $(document)[0].baseURI.split("?");
+				var token;
+				if(queryString.length === 2) {
+					token = "?" + queryString[1];
+				}
+				else {
+					token = "";
+				}
+				
+				$.ajax({
+					data : JSON.stringify(request),
+					contentType : 'applicaton/json',
+					url : 'https://localhost:8989/auth' + token,
+					type : 'POST',
+					success : function(data) { 
+						$('html').html(data.getElementById("body"));
+					},
+					error : function(data) {
+						$('html').html(data.responseText);
+					},
+				});
+				
+				return false;
+			});
+		});
+	</script>
 </head>
 <body>
 

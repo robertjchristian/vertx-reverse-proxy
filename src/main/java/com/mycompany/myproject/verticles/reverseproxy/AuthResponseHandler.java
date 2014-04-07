@@ -1,13 +1,10 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 
-import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -22,7 +19,6 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
@@ -32,137 +28,143 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
-    /**
-     * Log
-     */
-    private static final Logger log = LoggerFactory.getLogger(AuthResponseHandler.class);
+	/**
+	 * Log
+	 */
+	private static final Logger log = LoggerFactory.getLogger(AuthResponseHandler.class);
 
-    public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
-    public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
-    public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "auth/authFailInvalidPassword.html";
+	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
+	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
+	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "auth/authFailInvalidPassword.html";
 
-    private final HttpServerRequest req;
+	private final HttpServerRequest req;
 
-    private final Vertx vertx;
+	private final Vertx vertx;
 
-    private final ReverseProxyConfiguration config;
+	private final ReverseProxyConfiguration config;
 
-    private final SecretKey key;
+	private final SecretKey key;
 
-    private final String payload;
+	private final String payload;
 
-    private final SessionToken sessionToken;
+	private final SessionToken sessionToken;
 
-    private final boolean authPosted;
+	private final boolean authPosted;
 
-    public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key,
-                               String payload, SessionToken sessionToken, boolean authPosted) {
-        this.vertx = vertx;
-        this.config = config;
-        this.req = req;
-        this.key = key;
-        this.payload = payload;
-        this.sessionToken = sessionToken;
-        this.authPosted = authPosted;
-    }
+	public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+			boolean authPosted) {
+		this.vertx = vertx;
+		this.config = config;
+		this.req = req;
+		this.key = key;
+		this.payload = payload;
+		this.sessionToken = sessionToken;
+		this.authPosted = authPosted;
+	}
 
-    @Override
-    public void handle(HttpClientResponse cRes) {
-        cRes.dataHandler(new Handler<Buffer>() {
-            public void handle(Buffer data) {
+	@Override
+	public void handle(final HttpClientResponse res) {
+		res.dataHandler(new Handler<Buffer>() {
+			public void handle(Buffer data) {
 
-                Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
-                final AuthenticationResponse response = gson.fromJson(data.toString(), AuthenticationResponse.class);
+				Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
-                if ("success".equals(response.getResponse().getAuthentication())) {
-                    log.debug("Authentication successful.");
+				if (res.statusCode() >= 200 && res.statusCode() < 300) {
+					final AuthenticationResponse response = gson.fromJson(data.toString(), AuthenticationResponse.class);
 
-                    // re-assign session token
-                    sessionToken.setAuthToken(response.getResponse().getAuthenticationToken());
-                    sessionToken.setSessionDate(response.getResponse().getSessionDate());
-                    Exception exception = null;
-                    byte[] encryptedSession = null;
-                    try {
-                        Cipher c = Cipher.getInstance("AES");
-                        c.init(Cipher.ENCRYPT_MODE, key);
-                        encryptedSession = c.doFinal(gson.toJson(sessionToken).getBytes("UTF-8"));
-                    } catch (Exception e) {
-                        exception = e;
-                    }
+					if (response != null && response.getResponse() != null) {
+						if ("success".equals(response.getResponse().getAuthentication())) {
+							log.debug("authentication successful.");
 
-                    if (exception != null) {
-                        req.response().setStatusCode(500);
-                        req.response().setChunked(true);
-                        req.response().write("failed to encrypt session token. " + exception.getMessage());
-                        req.response().end();
-                    } else {
-                        req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
+							// re-assign session token
+							sessionToken.setAuthToken(response.getResponse().getAuthenticationToken());
+							sessionToken.setSessionDate(response.getResponse().getSessionDate());
 
-                        log.debug("Sending signPayload request to auth server...");
+							// check payload size
+							if (payload.length() > config.getMaxPayloadSizeBytesInNumber()) {
+								ReverseProxyUtil.sendAuthError(log, vertx, req, 413, "Request entity too large");
+								return;
+							}
 
-                        String authHost = config.serviceDependencies.getHost("auth");
-                        int authPort = config.serviceDependencies.getPort("auth");
-                        HttpClient signClient = vertx.createHttpClient().setHost(authHost).setPort(authPort);
+							// check if request is for non-default server
+							// if auth reqeust has been posted, original request uri not preserved. retrieve original uri from cookie
+							String uriPath;
+							if (authPosted) {
+								String originalRequest = ReverseProxyUtil.getCookieValue(req.headers(), "original-request");
+								String uri = new String(Base64.decode(originalRequest));
+								try {
+									uriPath = new URI(uri).getPath();
+								}
+								catch (URISyntaxException e) {
+									ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Bad URI: " + req.uri());
+									return;
+								}
+							}
+							else {
+								uriPath = req.absoluteURI().getPath();
+							}
+							String[] path = uriPath.split("/");
+							if (!path[1].equals(config.defaultService) && !path[1].equals("auth")) {
+								// check sid
+								String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
+								if (ReverseProxyUtil.isNullOrEmptyAfterTrim(sid)) {
+									log.error("SID is required for request to non-default service");
+									ReverseProxyUtil.sendAuthError(log, vertx, req, 400, "SID is required for request to non-default service");
+									return;
+								}
+							}
 
-                        final HttpClientRequest signRequest = signClient.request("POST",
-                                config.serviceDependencies.getRequestPath("auth", "sign"),
-                                new SignResponseHandler(vertx, config, config.serviceDependencies, req, payload, sessionToken, authPosted));
+							log.debug("sending signPayload request to auth server");
+							HttpClient signClient = vertx.createHttpClient()
+									.setHost(config.serviceDependencies.getHost("auth"))
+									.setPort(config.serviceDependencies.getPort("auth"));
+							final HttpClientRequest signRequest = signClient.request("POST",
+									config.serviceDependencies.getRequestPath("auth", "sign"),
+									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
 
-                        // TODO generate boundary
-                        String signRequestBody = MultipartUtil.constructSignRequest("AaB03x",
-                                response.getResponse().getAuthenticationToken(),
-                                response.getResponse().getSessionDate().toString(),
-                                payload);
+							// TODO generate boundary
+							String signRequestBody = MultipartUtil.constructSignRequest("AaB03x",
+									response.getResponse().getAuthenticationToken(),
+									response.getResponse().getSessionDate().toString(),
+									payload);
 
-                        signRequest.setChunked(true);
-                        signRequest.write(signRequestBody);
-                        signRequest.end();
+							signRequest.setChunked(true);
+							signRequest.write(signRequestBody);
+							signRequest.end();
 
-                        log.debug("Sent signPayload request to authorization server.");
-                    }
-                } else {
-                    log.debug("Authentication failed.");
+							log.debug("sent signPayload request to auth server");
 
-                    if (data.toString().contains("No USER ACCOUNT")) {
-                        FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_FAIL_NO_USER_TEMPLATE_PATH, new TemplateHandler(req, 401));
-                    } else if (data.toString().contains("incorrect DN or password")) {
-                        FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_FAIL_PASSWORD_TEMPLATE_PATH, new TemplateHandler(req, 401));
-                    } else {
-                        req.response().setStatusCode(500);
-                        req.response().setChunked(true);
-                        req.response().write("Authentication failed.");
-                        req.response().end();
-                    }
-                }
-            }
-        });
+						}
+						else {
+							log.debug("authentication failed.");
 
-        cRes.endHandler(new VoidHandler() {
-            public void handle() {
-                // do nothing
-            }
-        });
+							if (!ReverseProxyUtil.isNullOrEmptyAfterTrim(response.getResponse().getMessage())) {
+								ReverseProxyUtil.sendAuthError(log, vertx, req, 401, response.getResponse().getMessage());
+								return;
+							}
+							else {
+								ReverseProxyUtil.sendAuthError(log, vertx, req, 401, data.toString("UTF-8"));
+								return;
+							}
+						}
+					}
+					else {
+						log.debug("Received OK status, but did not receive any response message");
 
-    }
-
-    private class TemplateHandler implements AsyncResultHandler<byte[]> {
-
-        private HttpServerRequest req;
-        private int statusCode;
-
-        public TemplateHandler(HttpServerRequest req, int statusCode) {
-            this.req = req;
-            this.statusCode = statusCode;
-        }
-
-        @Override
-        public void handle(AsyncResult<byte[]> result) {
-            Buffer buffer = new Buffer(result.result());
-            req.response().setStatusCode(statusCode);
-            req.response().setChunked(true);
-            req.response().write(buffer);
-            req.response().end();
-        }
-
-    }
+						ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Received OK status, but did not receive any response message");
+						return;
+					}
+				}
+				else {
+					ReverseProxyUtil.sendAuthError(log, vertx, req, 500, data.toString("UTF-8"));
+					return;
+				}
+			}
+		});
+		res.endHandler(new VoidHandler() {
+			public void handle() {
+				// TODO exit gracefully if no body has been received				
+			}
+		});
+	}
 }
