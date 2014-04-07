@@ -1,7 +1,6 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.serviceDependencyConfig;
-
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -13,29 +12,40 @@ import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 
+/**
+ * @author hpark
+ */
 public class RoleResponseHandler implements Handler<HttpClientResponse> {
 
-	private static final Logger log = LoggerFactory.getLogger(RoleResponseHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(RoleResponseHandler.class);
 
-	private final HttpServerRequest req;
+    private final HttpServerRequest req;
 
-	private final Vertx vertx;
+    private final Vertx vertx;
 
-	private final String payload;
+    private final ReverseProxyConfiguration config;
 
-	private final SessionToken sessionToken;
+    private final ServiceDependencies authConfig;
 
-	private final boolean authPosted;
+    private final String payload;
 
-	public RoleResponseHandler(Vertx vertx, HttpServerRequest req, String payload, SessionToken sessionToken, boolean authPosted) {
-		this.req = req;
-		this.vertx = vertx;
-		this.payload = payload;
-		this.sessionToken = sessionToken;
-		this.authPosted = authPosted;
-	}
+    private final SessionToken sessionToken;
+
+    private final boolean authPosted;
+
+    public RoleResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
+                               SessionToken sessionToken, boolean authPosted) {
+        this.req = req;
+        this.vertx = vertx;
+        this.config = config;
+        this.authConfig = authConfig;
+        this.payload = payload;
+        this.sessionToken = sessionToken;
+        this.authPosted = authPosted;
+    }
 
 	@Override
 	public void handle(final HttpClientResponse res) {
@@ -54,11 +64,11 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 							serviceDependencyConfig.getRequestPath("acl", "manifest"),
 							new ManifestResponseHandler(vertx, req, payload, sessionToken, authPosted));
 
-					// TODO construct manifest request
+                    // TODO construct manifest request
 
-					roleRequest.setChunked(true);
-					roleRequest.write("");
-					roleRequest.end();
+                    roleRequest.setChunked(true);
+                    roleRequest.write("");
+                    roleRequest.end();
 
 					log.debug("Sent get manifest request from acl");
 				}

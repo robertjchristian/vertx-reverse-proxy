@@ -3,6 +3,7 @@ package com.mycompany.myproject.verticles.filecache;
 import com.mycompany.myproject.AsyncResultImpl;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
+import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.file.FileProps;
 import org.vertx.java.core.file.FileSystem;
@@ -16,9 +17,15 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * File cache
  * <p/>
- * Core implementation.
+ * Core implementation of a file cache.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * The cache runs in a dedicated verticle, and does not need to run as a worker, since files are loaded asynchronously.
+ *
+ * Note that there are two methods for interacting with the cache.  The first is by messaging.  An event bus message
+ * for put replies asynchronously with the result.  Additionally, the result becomes available on a shared map, and
+ * updates to the map are broadcast per entry, on channel "FILE_CACHE_CHANNEL" + key.
+ *
+ * @author robertjchristian
  */
 public class FileCacheImpl {
 
@@ -26,32 +33,43 @@ public class FileCacheImpl {
      * Log
      */
     private static final Logger log = LoggerFactory.getLogger(FileCacheImpl.class);
+
+    /**
+     * The internal cache
+     * <p/>
+     * WARN:  Updates made to this internal map must be kept in synch
+     * with the shared map below.  Could do something like this later...
+     * http://stackoverflow.com/questions/2547754/java-propertychangesupport-for-map-or-enummap...
+     * Or more ideally, collapse these two.
+     */
+    private final ConcurrentMap<String, FileCacheEntry> cacheMap;
+
+    /**
+     * The exposed cache
+     * <p/>
+     * Shared caches cannot contain custom (eg FileCacheEntry) types, yet
+     * we need to track custom types to check for updates.  So we maintain
+     * a separate version of the cache here, for consumer verticles.
+     */
+    private final ConcurrentMap<String, byte[]> sharedCacheMap;
+
     /**
      * Filesystem reference
      */
     private FileSystem fs;
-    /**
-     * The cache itself
-     */
-    private ConcurrentMap<String, FileCacheEntry> cacheMap;
 
     /**
      * Constructor
-     *
-     * @param fileSystem - Filesystem reference
      */
-    public FileCacheImpl(FileSystem fileSystem) {
+    public FileCacheImpl(Vertx vertx) {
         super();
-        this.fs = fileSystem;
-        this.cacheMap = new ConcurrentHashMap<String, FileCacheEntry>();
+        this.fs = vertx.fileSystem();
+        this.sharedCacheMap = vertx.sharedData().getMap(FileCacheVerticle.FILE_CACHE_MAP);
+        this.cacheMap = new ConcurrentHashMap<>();
     }
 
-    /**
-     * @param path - Filesystem path
-     * @return - FileCacheEntry from map
-     */
-    public FileCacheEntry fetch(String path) {
-        return cacheMap.get(path);
+    protected java.util.Map<String, FileCacheEntry> getInternalMap() {
+        return cacheMap;
     }
 
     /**
@@ -113,7 +131,11 @@ public class FileCacheImpl {
                                 confirmMsg += " file [" + path + "], modified [" + entry.lastModified() + "] to cache.";
                                 log.debug(confirmMsg);
 
+                                // update internal map
                                 cacheMap.put(path, entry);
+
+                                // update shared map
+                                sharedCacheMap.put(path, entry.fileContents());
 
                                 // return "finished success"
                                 asyncResultHandler.handle(new AsyncResultImpl(true, entry, null));

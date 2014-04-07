@@ -6,9 +6,9 @@ import java.util.Map;
 import com.google.gson.Gson;
 
 /**
- * Configuration
+ * Reverse Proxy Configuration
  *
- * @author Robert Christian
+ * @author robertjchristian
  */
 public class ReverseProxyConfiguration {
 
@@ -16,11 +16,12 @@ public class ReverseProxyConfiguration {
 		k, m, g
 	}
 
-	public SSL ssl; // TODO split into client and server (client should be able to change truststore location/pass dynamically)
+	public SSL ssl;
 	public Map<String, RewriteRule> rewriteRules;
 	public String[] assets;
 	public String defaultService;
 	public String maxPayloadSizeBytes;
+    public ServiceDependencies serviceDependencies;
 
 	public ReverseProxyConfiguration() {
 
@@ -38,12 +39,18 @@ public class ReverseProxyConfiguration {
 		ssl.keyStorePath = "../../../server-keystore.jks";
 		ssl.keyStorePassword = "password";
 
-		// rewrite rules
-		rewriteRules = new HashMap<String, RewriteRule>();
-		rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
-		rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
-		rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
-		rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
+        // service dependencies
+        serviceDependencies = new ServiceDependencies();
+        Map<String, String> paths = new HashMap<>();
+        paths.put("auth", "/auth");
+        serviceDependencies.dependencies.put("auth", new ServiceDescriptor("localhost", 8000, paths));
+
+        // rewrite rules
+        rewriteRules = new HashMap<String, RewriteRule>();
+        rewriteRules.put("sn", new RewriteRule("http", "localhost", 8080));
+        rewriteRules.put("acl", new RewriteRule("http", "localhost", 9001));
+        rewriteRules.put("um", new RewriteRule("http", "localhost", 9000));
+        rewriteRules.put("google", new RewriteRule("http", "google.com", 80));
 
 	}
 

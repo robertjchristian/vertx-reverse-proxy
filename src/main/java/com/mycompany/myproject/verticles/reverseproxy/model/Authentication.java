@@ -3,23 +3,26 @@ package com.mycompany.myproject.verticles.reverseproxy.model;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @author hpark
+ */
 public class Authentication {
 
-	private List<AuthRequest> authRequestList;
+    private List<AuthRequest> authRequestList;
 
-	public Authentication() {
-		authRequestList = new ArrayList<AuthRequest>();
-	}
+    public Authentication() {
+        authRequestList = new ArrayList<AuthRequest>();
+    }
 
-	public Authentication(List<AuthRequest> authRequestList) {
-		this.authRequestList = authRequestList;
-	}
+    public Authentication(List<AuthRequest> authRequestList) {
+        this.authRequestList = authRequestList;
+    }
 
-	public List<AuthRequest> getAuthRequestList() {
-		return authRequestList;
-	}
+    public List<AuthRequest> getAuthRequestList() {
+        return authRequestList;
+    }
 
-	public void setAuthRequestList(List<AuthRequest> authRequestList) {
-		this.authRequestList = authRequestList;
-	}
+    public void setAuthRequestList(List<AuthRequest> authRequestList) {
+        this.authRequestList = authRequestList;
+    }
 }

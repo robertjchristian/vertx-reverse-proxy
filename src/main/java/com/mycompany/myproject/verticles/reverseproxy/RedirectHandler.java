@@ -8,17 +8,20 @@ import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
+/**
+ * @author hpark
+ */
 public class RedirectHandler implements AsyncResultHandler<byte[]> {
 
-	private static final Logger log = LoggerFactory.getLogger(RedirectHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(RedirectHandler.class);
 
-	private final Vertx vertx;
-	private final HttpServerRequest req;
+    private final Vertx vertx;
+    private final HttpServerRequest req;
 
-	public RedirectHandler(Vertx vertx, HttpServerRequest req) {
-		this.vertx = vertx;
-		this.req = req;
-	}
+    public RedirectHandler(Vertx vertx, HttpServerRequest req) {
+        this.vertx = vertx;
+        this.req = req;
+    }
 
 	@Override
 	public void handle(AsyncResult<byte[]> event) {

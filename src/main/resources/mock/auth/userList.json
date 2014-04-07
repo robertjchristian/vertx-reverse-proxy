@@ -1,7 +1,14 @@
 {
-	"userList" : [{
-		"userId": "jun",
-		"password": "jun123",
-		"authenticationToken": "abcdefg"
-	}]
+	"userList" : [
+        {
+            "userId": "jun",
+            "password": "jun123",
+            "authenticationToken": "abcdefg"
+        },
+        {
+            "userId": "rob",
+            "password": "rob",
+            "authenticationToken": "abcdefg2"
+        },
+    ]
 }

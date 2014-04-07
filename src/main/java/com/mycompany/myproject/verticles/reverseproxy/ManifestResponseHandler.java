@@ -5,6 +5,7 @@ import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticl
 
 import javax.crypto.Cipher;
 
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
@@ -18,19 +19,49 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
+import com.mycompany.myproject.verticles.reverseproxy.configuration.RewriteRule;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 
+/**
+ * @author hpark
+ */
 public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 
-	private static final Logger log = LoggerFactory.getLogger(ManifestResponseHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(ManifestResponseHandler.class);
+    private final HttpServerRequest req;
+    private final Vertx vertx;
+    private final ReverseProxyConfiguration config;
+    private final ServiceDependencies authConfig;
+    private final String payload;
+    private final SessionToken sessionToken;
+    private final boolean authPosted;
 
-	private final HttpServerRequest req;
+    public ManifestResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
+                                   SessionToken sessionToken, boolean authPosted) {
+        this.req = req;
+        this.vertx = vertx;
+        this.config = config;
+        this.authConfig = authConfig;
+        this.payload = payload;
+        this.sessionToken = sessionToken;
+        this.authPosted = authPosted;
+    }
 
-	private final Vertx vertx;
+    @Override
+    public void handle(HttpClientResponse res) {
 
-	private final String payload;
+        // if role request was successful, do redirect
+        if (authPosted) {
+            FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
+        } else {
+            // do reverse proxy
+            // TODO web root should come from reverse proxy config
+            String webRoot = "../../../resources/web";
+            new ReverseProxyClient(webRoot).doProxy(vertx, req, payload, config, log);
+        }
 
-	private final SessionToken sessionToken;
+    }
 
 	private final boolean authPosted;
 

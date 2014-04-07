@@ -16,7 +16,7 @@ import java.util.Set;
  * Supports asynchronous file caching and updating.  Clients access the cache using
  * the event bus protocol.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCacheVerticle extends Verticle {
 
@@ -27,8 +27,15 @@ public class FileCacheVerticle extends Verticle {
 
     /**
      * Listens on this channel for cache requests
+     *
+     * Note:  This is also used as a prefix for update notifications (CHANNEL + KEY)
      */
     public static final String FILE_CACHE_CHANNEL = "file.cache.channel";
+
+    /**
+     * Name of shared cache map
+     */
+    public static final String FILE_CACHE_MAP = "file.cache.map";
 
     /**
      * Delay in milliseconds between cache updates
@@ -40,7 +47,7 @@ public class FileCacheVerticle extends Verticle {
      */
     public void scheduleUpdate(final FileCacheImpl cache, final long refreshIntervalMillis) {
 
-        log.debug("Starting FileCache update...");
+        log.debug("Starting FileCacheMap update...");
 
         cache.updateCache(new AsyncResultHandler<Set<FileCacheEntry>>() {
             @Override
@@ -48,13 +55,12 @@ public class FileCacheVerticle extends Verticle {
 
                 // broadcast updates
                 for (FileCacheEntry entry : event.result()) {
-
                     // TODO should be notifying on failures as well
                     vertx.eventBus().publish(entry.getEventBusNotificationChannel(), true);
-
                 }
 
                 log.debug("Scheduling next update in " + REFRESH_INTERVAL_MILLIS + " milliseconds");
+
                 // scheduling this from within the timer enables us to create a window between updates,
                 // as opposed to using a periodic timer, where their could be overlaps depending on how
                 // long updates take...
@@ -77,7 +83,7 @@ public class FileCacheVerticle extends Verticle {
         final EventBus bus = vertx.eventBus();
 
         // set the cache reference
-        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx().fileSystem());
+        final FileCacheImpl FILE_CACHE = new FileCacheImpl(this.getVertx());
 
         /**
          * Listen for "put" requests on event bus on channel FILE_CACHE_CHANNEL

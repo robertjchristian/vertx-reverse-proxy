@@ -12,7 +12,7 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
  * <p/>
  * Used by the file cache verticle to handle event-bus-driven cache messages.
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public class FileCachePutRequestHandler implements Handler<Message<String>> {
 
@@ -44,8 +44,8 @@ public class FileCachePutRequestHandler implements Handler<Message<String>> {
          * HANDLE CACHE HIT
          */
         // for now use case is:  only handle relative path
-        if (fileCache.fetch(path) != null) {
-            FileCacheEntry e = fileCache.fetch(path);
+        if (fileCache.getInternalMap().get(path) != null) {
+            FileCacheEntry e = fileCache.getInternalMap().get(path);
             message.reply(e.fileContents());
             return;
         }

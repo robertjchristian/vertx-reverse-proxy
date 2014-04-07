@@ -5,11 +5,10 @@ import com.google.gson.Gson;
 /**
  * Configuration
  *
- * @author Robert Christian
+ * @author robertjchristian
  */
 public class FileCacheConfiguration {
 
-    // TODO encapsulate
     public long refreshMillis = 300000L; // refresh every 5 minutes by default
     public String baseDir = "."; // default base dir to "."
 

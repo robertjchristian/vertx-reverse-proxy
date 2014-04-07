@@ -5,7 +5,7 @@ import org.vertx.java.core.file.FileProps;
 /**
  * File cache entry
  *
- * @author <a href="https://github.com/robertjchristian">Robert Christian</a>
+ * @author robertjchristian
  */
 public interface FileCacheEntry {
 
