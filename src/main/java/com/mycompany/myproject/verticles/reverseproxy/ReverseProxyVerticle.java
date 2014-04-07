@@ -125,7 +125,7 @@ public class ReverseProxyVerticle extends Verticle {
 		/**
 		 * Handle requests for authentication
 		 */
-		routeMatcher.all("/auth", new AuthHandler(vertx, config, key));
+		routeMatcher.all("/auth", new AuthRequestHandler(vertx, config, key));
 
 		/**
 		 * Handle requests for assets

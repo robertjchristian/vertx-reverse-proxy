@@ -101,6 +101,14 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 								uriPath = req.absoluteURI().getPath();
 							}
 							String[] path = uriPath.split("/");
+
+                            // check for no forward slash in path
+                            if (path.length < 2) {
+                                 log.error("Expected path to contain slash '/' but does not:  " + uriPath);
+                                 // TODO handle this gracefully... ie send client redirect to /sb (default)
+                            }
+
+                            // ... otherwise
 							if (!path[1].equals(config.defaultService) && !path[1].equals("auth")) {
 								// check sid
 								String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
@@ -117,7 +125,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 									new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").format(response.getResponse().getSessionDate()),
 									payload);
 
-							log.debug("sending signPayload request to auth server");
+							log.debug("Sending signPayload request to auth server");
 							HttpClient signClient = vertx.createHttpClient()
 									.setHost(config.serviceDependencies.getHost("auth"))
 									.setPort(config.serviceDependencies.getPort("auth"));
