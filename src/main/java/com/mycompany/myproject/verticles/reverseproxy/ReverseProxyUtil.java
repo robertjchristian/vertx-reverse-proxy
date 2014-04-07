@@ -14,7 +14,6 @@ import org.vertx.java.core.MultiMap;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
-import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 
 import com.google.gson.Gson;
@@ -124,21 +123,6 @@ public class ReverseProxyUtil {
 				return nvp.getValue();
 			}
 		}
-		return null;
-	}
-
-	public static String[] getAuthFromBasicAuthHeader(MultiMap headers) {
-		String basicAuthHeader = headers.get("Authorization");
-		if (basicAuthHeader != null && !basicAuthHeader.isEmpty()) {
-			String parsedAuthInfo = basicAuthHeader.replace("Basic", "").trim();
-			String decodedAuthInfo = new String(Base64.decode(parsedAuthInfo));
-			String[] auth = decodedAuthInfo.split(":");
-
-			if (auth != null && auth.length == 2) {
-				return auth;
-			}
-		}
-
 		return null;
 	}
 

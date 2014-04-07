@@ -33,10 +33,6 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 	 */
 	private static final Logger log = LoggerFactory.getLogger(AuthResponseHandler.class);
 
-	public static final String AUTH_SUCCESS_TEMPLATE_PATH = "auth/authSuccessful.html";
-	public static final String AUTH_FAIL_NO_USER_TEMPLATE_PATH = "auth/authFailNoUserAccount.html";
-	public static final String AUTH_FAIL_PASSWORD_TEMPLATE_PATH = "auth/authFailInvalidPassword.html";
-
 	private final HttpServerRequest req;
 
 	private final Vertx vertx;

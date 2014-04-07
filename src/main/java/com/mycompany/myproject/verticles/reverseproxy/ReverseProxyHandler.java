@@ -125,61 +125,43 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
 					Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
-					Exception exception = null;
 					SessionToken sessionToken = null;
 					String authRequestStr = "";
 					String sessionTokenStr = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
-					String[] basicAuthHeader = ReverseProxyUtil.getAuthFromBasicAuthHeader(req.headers());
 
-					if ((sessionTokenStr != null && !sessionTokenStr.isEmpty()) || (basicAuthHeader != null && basicAuthHeader.length == 2)) {
-						if (sessionTokenStr != null && !sessionTokenStr.isEmpty()) {
-							log.debug(String.format("Session token found. Authenticating using authentication token."));
-							byte[] decryptedSession = null;
-							try {
-								Cipher c = Cipher.getInstance("AES");
-								c.init(Cipher.DECRYPT_MODE, key);
-								decryptedSession = c.doFinal(Base64.decode(sessionTokenStr));
+					if (sessionTokenStr != null && !sessionTokenStr.isEmpty()) {
+						log.debug(String.format("Session token found. Authenticating using authentication token."));
+						byte[] decryptedSession = null;
+						try {
+							Cipher c = Cipher.getInstance("AES");
+							c.init(Cipher.DECRYPT_MODE, key);
+							decryptedSession = c.doFinal(Base64.decode(sessionTokenStr));
 
-								sessionToken = gson.fromJson(new String(decryptedSession), SessionToken.class);
+							sessionToken = gson.fromJson(new String(decryptedSession), SessionToken.class);
 
-								AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", "", "");
-								AuthenticateRequest request = new AuthenticateRequest();
-								request.setAuthenticationToken(sessionToken.getAuthToken());
-								request.getAuthentication().getAuthRequestList().add(authRequest);
-								authRequestStr = gson.toJson(request);
-							}
-							catch (Exception e) {
-								exception = e;
-							}
-						}
-						else {
-							log.debug("session token not found. basic auth header found.");
-							AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", basicAuthHeader[0], basicAuthHeader[1]);
+							AuthRequest authRequest = new AuthRequest("NAME_PASSWORD", "", "");
 							AuthenticateRequest request = new AuthenticateRequest();
+							request.setAuthenticationToken(sessionToken.getAuthToken());
 							request.getAuthentication().getAuthRequestList().add(authRequest);
 							authRequestStr = gson.toJson(request);
-
-							sessionToken = new SessionToken(basicAuthHeader[0], null, null);
 						}
-
-						if (exception == null) {
-							log.debug("Sending auth request to authentication server.");
-							HttpClient authClient = vertx.createHttpClient()
-									.setHost(config.serviceDependencies.getHost("auth"))
-									.setPort(config.serviceDependencies.getPort("auth"));
-							final HttpClientRequest authReq = authClient.request("POST",
-									config.serviceDependencies.getRequestPath("auth", "auth"),
-									new AuthResponseHandler(vertx, config, req, key, payloadBuffer.toString("UTF-8"), sessionToken, false));
-
-							authReq.setChunked(true);
-							authReq.write(authRequestStr);
-							authReq.end();
-						}
-						else {
-							log.error(exception.getMessage());
-							ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Unable to decrypt session token: " + exception.getMessage());
+						catch (Exception e) {
+							log.error(e.getMessage());
+							ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Unable to decrypt session token: " + e.getMessage());
 							return;
 						}
+
+						log.debug("Sending auth request to authentication server.");
+						HttpClient authClient = vertx.createHttpClient()
+								.setHost(config.serviceDependencies.getHost("auth"))
+								.setPort(config.serviceDependencies.getPort("auth"));
+						final HttpClientRequest authReq = authClient.request("POST",
+								config.serviceDependencies.getRequestPath("auth", "auth"),
+								new AuthResponseHandler(vertx, config, req, key, payloadBuffer.toString("UTF-8"), sessionToken, false));
+
+						authReq.setChunked(true);
+						authReq.write(authRequestStr);
+						authReq.end();
 					}
 					else {
 						log.info("session token and basic auth header not found. redirecting to login page");
