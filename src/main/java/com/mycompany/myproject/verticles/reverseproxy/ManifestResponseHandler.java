@@ -1,28 +1,24 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.resourceRoot;
 import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
 
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 
-import com.mycompany.myproject.verticles.reverseproxy.configuration.ServiceDependencies;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.VoidHandler;
 import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.http.HttpClient;
-import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.http.HttpServerRequest;
+import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
-import com.mycompany.myproject.verticles.reverseproxy.configuration.RewriteRule;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 
 /**
@@ -30,53 +26,76 @@ import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
  */
 public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 
-    private static final Logger log = LoggerFactory.getLogger(ManifestResponseHandler.class);
-    private final HttpServerRequest req;
-    private final Vertx vertx;
-    private final ReverseProxyConfiguration config;
-    private final ServiceDependencies authConfig;
-    private final String payload;
-    private final SessionToken sessionToken;
-    private final boolean authPosted;
+	private static final Logger log = LoggerFactory.getLogger(ManifestResponseHandler.class);
+	private final HttpServerRequest req;
+	private final Vertx vertx;
+	private final ReverseProxyConfiguration config;
+	private final SecretKey key;
+	private final String payload;
+	private final SessionToken sessionToken;
+	private final boolean authPosted;
 
-    public ManifestResponseHandler(Vertx vertx, ReverseProxyConfiguration config, ServiceDependencies authConfig, HttpServerRequest req, String payload,
-                                   SessionToken sessionToken, boolean authPosted) {
-        this.req = req;
-        this.vertx = vertx;
-        this.config = config;
-        this.authConfig = authConfig;
-        this.payload = payload;
-        this.sessionToken = sessionToken;
-        this.authPosted = authPosted;
-    }
+	public ManifestResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload,
+			SessionToken sessionToken, boolean authPosted) {
+		this.req = req;
+		this.vertx = vertx;
+		this.config = config;
+		this.key = key;
+		this.payload = payload;
+		this.sessionToken = sessionToken;
+		this.authPosted = authPosted;
+	}
 
-    @Override
-    public void handle(HttpClientResponse res) {
+	@Override
+	public void handle(final HttpClientResponse res) {
 
-        // TODO do something with manifest ?
-        if (res.statusCode() >= 200 && res.statusCode() < 300) {
-            log.debug("Get manifest successful.");
+		res.dataHandler(new Handler<Buffer>() {
+			@Override
+			public void handle(Buffer data) {
 
-            res.dataHandler(new Handler<Buffer>() {
-                @Override
-                public void handle(Buffer data) {
-                    log.info(data.toString());
-                }
-            });
-        } else {
-            log.debug("Failed to get manifest.");
-        }
+				final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
-        // if role request was successful, do redirect
-        if (authPosted) {
-            FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
-        } else {
-            // do reverse proxy
-            // TODO web root should come from reverse proxy config
-            String webRoot = "../../../resources/web";
-            new ReverseProxyClient(webRoot).doProxy(vertx, req, payload, config, log);
-        }
+				if (res.statusCode() >= 200 && res.statusCode() < 300) {
 
-    }
+					// TODO do something with manifest ?
+					log.debug("Get manifest successful.");
 
+					// re-assign session token
+					// session timeout will be handled by UM
+					byte[] encryptedSession = null;
+					try {
+						Cipher c = Cipher.getInstance("AES");
+						c.init(Cipher.ENCRYPT_MODE, key);
+						encryptedSession = c.doFinal(gson.toJson(sessionToken).getBytes("UTF-8"));
+					}
+					catch (Exception e) {
+						ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "failed to encrypt session token. " + e.getMessage());
+						return;
+					}
+					req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
+
+					// if manifest request was successful, do redirect
+					if (authPosted) {
+						FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
+					}
+					else {
+						// do reverse proxy
+						new ReverseProxyClient(webRoot).doProxy(vertx, req, payload, config, log);
+					}
+				}
+				else {
+					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
+				}
+			}
+		});
+
+		res.endHandler(new VoidHandler() {
+
+			@Override
+			protected void handle() {
+				// TODO exit gracefully if no data has been received
+			}
+
+		});
+	}
 }

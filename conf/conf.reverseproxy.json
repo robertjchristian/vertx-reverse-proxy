@@ -7,6 +7,8 @@
         "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
+    "defaultService" : "sb",
+    "maxPayloadSizeBytes": "512k",
     "serviceDependencies": {
         "dependencies": {
             "auth": {
@@ -44,7 +46,7 @@
         "txt"
     ],
     "rewriteRules": {
-        "sn": {
+        "sb": {
             "protocol": "http",
             "host": "localhost",
             "port": 8080
@@ -57,7 +59,12 @@
         "hn": {
             "protocol": "https",
             "host": "news.ycombinator.com",
-            "port": 80
+            "port": 443
+        },
+        "boa": {
+            "protocol": "https",
+            "host": "www.bankofamerica.com",
+            "port": 443
         }
     }
 
