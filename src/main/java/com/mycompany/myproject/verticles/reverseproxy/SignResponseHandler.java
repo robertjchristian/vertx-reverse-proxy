@@ -14,6 +14,7 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUser;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
@@ -42,8 +43,10 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
 	private final boolean authPosted;
 
+	private final String unsignedDocument;
+
 	public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
-			boolean authPosted) {
+			boolean authPosted, String unsignedDocument) {
 		this.vertx = vertx;
 		this.config = config;
 		this.req = req;
@@ -51,12 +54,15 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
+		this.unsignedDocument = unsignedDocument;
 	}
 
 	@Override
 	public void handle(final HttpClientResponse res) {
 
 		log.debug("Received response from auth server for sign request");
+
+		final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
 		// payload signing successful
 		res.dataHandler(new Handler<Buffer>() {
@@ -72,13 +78,13 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 							.setPort(config.serviceDependencies.getPort("roles"));
 					final HttpClientRequest roleRequest = signClient.request("POST",
 							config.serviceDependencies.getRequestPath("roles", "roles"),
-							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
+							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, data.toString("UTF-8")));
 
 					String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
 					ApplicationUser appUser = new ApplicationUser(sessionToken.getUsername(), sid);
 
 					roleRequest.setChunked(true);
-					roleRequest.write(new Gson().toJson(appUser));
+					roleRequest.write(gson.toJson(appUser));
 					roleRequest.end();
 				}
 				// payload signing failed

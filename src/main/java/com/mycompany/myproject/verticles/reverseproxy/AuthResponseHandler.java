@@ -2,6 +2,7 @@ package com.mycompany.myproject.verticles.reverseproxy;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.SimpleDateFormat;
 
 import javax.crypto.SecretKey;
 
@@ -110,22 +111,22 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 								}
 							}
 
+							// TODO generate boundary
+							String unsignedDocument = MultipartUtil.constructSignRequest("AaB03x",
+									response.getResponse().getAuthenticationToken(),
+									new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").format(response.getResponse().getSessionDate()),
+									payload);
+
 							log.debug("sending signPayload request to auth server");
 							HttpClient signClient = vertx.createHttpClient()
 									.setHost(config.serviceDependencies.getHost("auth"))
 									.setPort(config.serviceDependencies.getPort("auth"));
 							final HttpClientRequest signRequest = signClient.request("POST",
 									config.serviceDependencies.getRequestPath("auth", "sign"),
-									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
-
-							// TODO generate boundary
-							String signRequestBody = MultipartUtil.constructSignRequest("AaB03x",
-									response.getResponse().getAuthenticationToken(),
-									response.getResponse().getSessionDate().toString(),
-									payload);
+									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument));
 
 							signRequest.setChunked(true);
-							signRequest.write(signRequestBody);
+							signRequest.write(unsignedDocument);
 							signRequest.end();
 
 							log.debug("sent signPayload request to auth server");
