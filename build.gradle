@@ -90,7 +90,6 @@ task runMockServers(type: Test) {
 	systemProperties['vertx.test.timeout'] = '3600'
 	testLogging.showStandardStreams = true
 	include 'com/mycompany/myproject/test/mock/MockServerTest*'
-	println System.properties['system']
 }
 
 task initJDK(type: Copy) {
