@@ -1,6 +1,5 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -20,6 +19,7 @@ import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author hpark
@@ -69,22 +69,22 @@ public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 						encryptedSession = c.doFinal(gson.toJson(sessionToken).getBytes("UTF-8"));
 					}
 					catch (Exception e) {
-						ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "failed to encrypt session token. " + e.getMessage());
+						ReverseProxyUtil.sendFailure(log, req, 500, "failed to encrypt session token. " + e.getMessage());
 						return;
 					}
 					req.response().headers().add("Set-Cookie", String.format("session-token=%s", Base64.encodeBytes(encryptedSession).replace("\n", "")));
 
 					// if manifest request was successful, do redirect
 					if (authPosted) {
-						FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
+						FileCacheUtil.readFile(vertx.eventBus(), log, config.webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
 					}
 					else {
 						// do reverse proxy
-						new ReverseProxyClient(webRoot).doProxy(vertx, req, payload, config, log);
+						new ReverseProxyClient().doProxy(vertx, req, payload, config, log);
 					}
 				}
 				else {
-					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendFailure(log, req, res.statusCode(), data.toString());
 				}
 			}
 		});

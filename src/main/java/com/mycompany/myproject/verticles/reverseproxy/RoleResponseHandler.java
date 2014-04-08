@@ -18,6 +18,8 @@ import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUser;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.MultipartUtil;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author hpark
@@ -77,8 +79,7 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 							new ManifestResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
 
 					String[] path = req.path().split("/");
-					String manifestRequest = MultipartUtil.constructAclRequest(config.rewriteRules.get(path[1]).getName(),
-							gson.fromJson(data.toString(), ApplicationUser.class).getRoles());
+					String manifestRequest = MultipartUtil.constructAclRequest("", gson.fromJson(data.toString(), ApplicationUser.class).getRoles());
 					String multipartManifestRequest = MultipartUtil.constructManifestRequest("BaB03x", unsignedDocument, signedDocument, manifestRequest);
 
 					roleRequest.setChunked(true);
@@ -90,7 +91,7 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 				else {
 					log.debug("Failed to fetch role.");
 
-					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendFailure(log, req, res.statusCode(), data.toString());
 					return;
 				}
 			}

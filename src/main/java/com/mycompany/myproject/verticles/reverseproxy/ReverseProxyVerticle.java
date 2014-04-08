@@ -16,6 +16,7 @@ import org.vertx.java.platform.Verticle;
 import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * Reverse proxy verticle
@@ -34,10 +35,6 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Configuration path
 	 */
 	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
-	public static final String SERVICE_DEPENDENCY_CONFIG_PATH = "../../../conf/conf.servicedependency.json";
-
-	public static String resourceRoot;
-	public static String webRoot;
 
 	/**
 	 * Configuration parsed and hydrated
@@ -64,10 +61,6 @@ public class ReverseProxyVerticle extends Verticle {
 	 * Entry point
 	 */
 	public void start() {
-
-		// TODO clean this up
-		resourceRoot = container.config().getString("resourceRoot");
-		webRoot = container.config().getString("webRoot");
 
 		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
 			@Override
@@ -100,7 +93,7 @@ public class ReverseProxyVerticle extends Verticle {
 				// bootstrap key
 				// TODO dynamic loading of key
 				// TODO expired key handling
-				FileCacheUtil.readFile(vertx.eventBus(), log, resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
+				FileCacheUtil.readFile(vertx.eventBus(), log, config.resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
 
 					@Override
 					public void handle(AsyncResult<byte[]> event) {
@@ -144,7 +137,7 @@ public class ReverseProxyVerticle extends Verticle {
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
 				.setSSL(true)
-				.setKeyStorePath(resourceRoot + config.ssl.keyStorePath)
+				.setKeyStorePath(config.resourceRoot + config.ssl.keyStorePath)
 				.setKeyStorePassword(config.ssl.keyStorePassword);
 
 		httpsServer.listen(config.ssl.proxyHttpsPort);

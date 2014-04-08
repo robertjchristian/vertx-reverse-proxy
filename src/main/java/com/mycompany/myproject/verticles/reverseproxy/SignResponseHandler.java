@@ -18,6 +18,8 @@ import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUser;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyConstants;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author hpark
@@ -45,8 +47,10 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
 	private final String unsignedDocument;
 
+	private final String refererSid;
+
 	public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
-			boolean authPosted, String unsignedDocument) {
+			boolean authPosted, String unsignedDocument, String refererSid) {
 		this.vertx = vertx;
 		this.config = config;
 		this.req = req;
@@ -55,6 +59,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
 		this.unsignedDocument = unsignedDocument;
+		this.refererSid = refererSid;
 	}
 
 	@Override
@@ -78,10 +83,10 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 							.setPort(config.serviceDependencies.getPort("roles"));
 					final HttpClientRequest roleRequest = signClient.request("POST",
 							config.serviceDependencies.getRequestPath("roles", "roles"),
-							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, data.toString("UTF-8")));
+							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, data.toString()));
 
-					String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
-					ApplicationUser appUser = new ApplicationUser(sessionToken.getUsername(), sid);
+					String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), ReverseProxyConstants.SID);
+					ApplicationUser appUser = new ApplicationUser(sessionToken.getUsername(), !ReverseProxyUtil.isNullOrEmptyAfterTrim(sid) ? sid : refererSid);
 
 					roleRequest.setChunked(true);
 					roleRequest.write(gson.toJson(appUser));
@@ -91,7 +96,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 				else {
 					log.debug("Payload signing failed.");
 
-					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendFailure(log, req, res.statusCode(), data.toString());
 					return;
 				}
 			}

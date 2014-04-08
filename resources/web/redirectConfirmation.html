@@ -12,7 +12,7 @@
 		
 			window.alert("Authentication Success.");
 			if(window.location.pathname === "/auth") {
-				window.location.assign("/sb" + token);
+				window.location.assign("/sb/service-broker-v1.0.0/ui/index.html#/" + token);
 			}
 			else {
 				window.location.reload();

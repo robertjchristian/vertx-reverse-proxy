@@ -8,6 +8,8 @@ import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
+
 /**
  * @author hpark
  */
@@ -36,7 +38,7 @@ public class RedirectHandler implements AsyncResultHandler<byte[]> {
 			req.response().end();
 		}
 		catch (Exception e) {
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, e.getMessage());
+			ReverseProxyUtil.sendFailure(log, req, 500, e.getMessage());
 			return;
 		}
 	}

@@ -23,6 +23,9 @@ import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticationResponse;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.MultipartUtil;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyConstants;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author hpark
@@ -48,8 +51,10 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
 	private final boolean authPosted;
 
+	private final String refererSid;
+
 	public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
-			boolean authPosted) {
+			boolean authPosted, String refererSid) {
 		this.vertx = vertx;
 		this.config = config;
 		this.req = req;
@@ -57,6 +62,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
+		this.refererSid = refererSid;
 	}
 
 	@Override
@@ -79,7 +85,10 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
 							// check payload size
 							if (payload.length() > config.getMaxPayloadSizeBytesInNumber()) {
-								ReverseProxyUtil.sendAuthError(log, vertx, req, 413, "Request entity too large");
+								ReverseProxyUtil.sendFailure(log,
+										req,
+										413,
+										String.format("Request entity too large. Maximum payload size %s", config.maxPayloadSizeBytes));
 								return;
 							}
 
@@ -87,13 +96,13 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 							// if auth reqeust has been posted, original request uri not preserved. retrieve original uri from cookie
 							String uriPath;
 							if (authPosted) {
-								String originalRequest = ReverseProxyUtil.getCookieValue(req.headers(), "original-request");
+								String originalRequest = ReverseProxyUtil.getCookieValue(req.headers(), ReverseProxyConstants.COOKIE_ORIGINAL_HEADER);
 								String uri = new String(Base64.decode(originalRequest));
 								try {
 									uriPath = new URI(uri).getPath();
 								}
 								catch (URISyntaxException e) {
-									ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Bad URI: " + req.uri());
+									ReverseProxyUtil.sendFailure(log, req, 500, "Bad URI: " + req.uri());
 									return;
 								}
 							}
@@ -102,20 +111,22 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 							}
 							String[] path = uriPath.split("/");
 
-                            // check for no forward slash in path
-                            if (path.length < 2) {
-                                 log.error("Expected path to contain slash '/' but does not:  " + uriPath);
-                                 // TODO handle this gracefully... ie send client redirect to /sb (default)
-                            }
+							// check for no forward slash in path
+							if (path.length < 2) {
+								log.error("Expected path to contain slash '/' but does not:  " + uriPath);
+								// TODO handle this gracefully... ie send client redirect to /sb (default)
+							}
 
-                            // ... otherwise
+							// ... otherwise
 							if (!path[1].equals(config.defaultService) && !path[1].equals("auth")) {
 								// check sid
-								String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), "sid");
+								String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), ReverseProxyConstants.SID);
 								if (ReverseProxyUtil.isNullOrEmptyAfterTrim(sid)) {
-									log.error("SID is required for request to non-default service");
-									ReverseProxyUtil.sendAuthError(log, vertx, req, 400, "SID is required for request to non-default service");
-									return;
+									if (ReverseProxyUtil.isNullOrEmptyAfterTrim(refererSid)) {
+										log.error("SID is required for request to non-default service");
+										ReverseProxyUtil.sendFailure(log, req, 400, "SID is required for request to non-default service");
+										return;
+									}
 								}
 							}
 
@@ -131,7 +142,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 									.setPort(config.serviceDependencies.getPort("auth"));
 							final HttpClientRequest signRequest = signClient.request("POST",
 									config.serviceDependencies.getRequestPath("auth", "sign"),
-									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument));
+									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, refererSid));
 
 							signRequest.setChunked(true);
 							signRequest.write(unsignedDocument);
@@ -144,11 +155,11 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 							log.debug("authentication failed.");
 
 							if (!ReverseProxyUtil.isNullOrEmptyAfterTrim(response.getResponse().getMessage())) {
-								ReverseProxyUtil.sendAuthError(log, vertx, req, 401, response.getResponse().getMessage());
+								ReverseProxyUtil.sendFailure(log, req, 401, response.getResponse().getMessage());
 								return;
 							}
 							else {
-								ReverseProxyUtil.sendAuthError(log, vertx, req, 401, data.toString("UTF-8"));
+								ReverseProxyUtil.sendFailure(log, req, 401, data.toString());
 								return;
 							}
 						}
@@ -156,12 +167,12 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 					else {
 						log.debug("Received OK status, but did not receive any response message");
 
-						ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Received OK status, but did not receive any response message");
+						ReverseProxyUtil.sendFailure(log, req, 500, "Received OK status, but did not receive any response message");
 						return;
 					}
 				}
 				else {
-					ReverseProxyUtil.sendAuthError(log, vertx, req, 500, data.toString("UTF-8"));
+					ReverseProxyUtil.sendFailure(log, req, 500, data.toString());
 					return;
 				}
 			}

@@ -1,4 +1,4 @@
-package com.mycompany.myproject.verticles.reverseproxy;
+package com.mycompany.myproject.verticles.reverseproxy.util;
 
 import java.util.List;
 
