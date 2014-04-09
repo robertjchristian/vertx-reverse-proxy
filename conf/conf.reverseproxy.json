@@ -8,7 +8,7 @@
         "proxyHttpsPort": 8989
     },
     "resourceRoot": "../../../resources/",
-    "webRoot": "../../../resources/web/"
+    "webRoot": "../../../resources/web/",
     "defaultService" : "sb",
     "maxPayloadSizeBytes": "512k",
     "serviceDependencies": {
