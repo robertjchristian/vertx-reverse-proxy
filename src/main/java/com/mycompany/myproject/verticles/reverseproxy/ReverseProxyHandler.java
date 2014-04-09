@@ -1,6 +1,6 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+import java.net.URI;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -23,6 +23,8 @@ import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxy
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyConstants;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 
 /**
@@ -74,14 +76,14 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
 		if (config == null) {
 			log.error("No config found.");
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "No config found.");
+			ReverseProxyUtil.sendFailure(log, req, 500, "No config found.");
 			return;
 		}
 
 		// get rewrite rules as POJO
 		if (config.rewriteRules == null) {
 			log.error("No rewrite rules found.");
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "No rewrite rules found.");
+			ReverseProxyUtil.sendFailure(log, req, 500, "No rewrite rules found.");
 			return;
 		}
 
@@ -109,14 +111,34 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 				@Override
 				protected void handle() {
 
+					// check for sid in request
+					String refererSid = null;
+					if (ReverseProxyUtil.isNullOrEmptyAfterTrim(ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), ReverseProxyConstants.SID))) {
+						// if it does not exist, then try fetching sid from referer header and pass that down the filters
+						try {
+							URI refererURI = new URI(req.headers().get(ReverseProxyConstants.HEADER_REFERER));
+							refererSid = ReverseProxyUtil.parseTokenFromQueryString(refererURI, ReverseProxyConstants.SID);
+						}
+						catch (Exception e) {
+							// do nothing
+						}
+					}
+
+
 					/**
 					 * If auth/acl not required (ie white-listed as an asset, reverse proxy)
 					 */
 
 					if (!requiresAuthAndACL) {
-						// do reverse proxy
-						new ReverseProxyClient(webRoot).doProxy(vertx, req, null, config, log);
-						return;
+						// For assets, request header must contain either Referer and/or X-Requested-With
+						// (Request with those headers are coming from browser, not from direct user input)
+						if (!ReverseProxyUtil.isNullOrEmptyAfterTrim(req.headers().get(ReverseProxyConstants.HEADER_REFERER))
+								|| ReverseProxyConstants.ACCEPTED_X_REQUESTED_WITH_VALUE.equals(req.headers()
+										.get(ReverseProxyConstants.HEADER_X_REQUESTED_WITH))) {
+							// do reverse proxy
+							new ReverseProxyClient().doProxy(vertx, req, null, config, log);
+							return;
+						}
 					}
 
 					/**
@@ -127,7 +149,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 
 					SessionToken sessionToken = null;
 					String authRequestStr = "";
-					String sessionTokenStr = ReverseProxyUtil.getCookieValue(req.headers(), "session-token");
+					String sessionTokenStr = ReverseProxyUtil.getCookieValue(req.headers(), ReverseProxyConstants.COOKIE_SESSION_TOKEN);
 
 					if (sessionTokenStr != null && !sessionTokenStr.isEmpty()) {
 						log.debug(String.format("Session token found. Authenticating using authentication token."));
@@ -147,7 +169,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 						}
 						catch (Exception e) {
 							log.error(e.getMessage());
-							ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Unable to decrypt session token: " + e.getMessage());
+							ReverseProxyUtil.sendFailure(log, req, 500, "Unable to decrypt session token: " + e.getMessage());
 							return;
 						}
 
@@ -157,7 +179,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 								.setPort(config.serviceDependencies.getPort("auth"));
 						final HttpClientRequest authReq = authClient.request("POST",
 								config.serviceDependencies.getRequestPath("auth", "auth"),
-								new AuthResponseHandler(vertx, config, req, key, payloadBuffer.toString("UTF-8"), sessionToken, false));
+								new AuthResponseHandler(vertx, config, req, key, payloadBuffer.toString(), sessionToken, false, refererSid));
 
 						authReq.setChunked(true);
 						authReq.write(authRequestStr);
@@ -167,12 +189,11 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 						log.info("session token and basic auth header not found. redirecting to login page");
 
 						// return login page
-						FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + "auth/login.html", new RedirectHandler(vertx, req));
+						FileCacheUtil.readFile(vertx.eventBus(), log, config.webRoot + "auth/login.html", new RedirectHandler(vertx, req));
 						return;
 					}
 				}
 			});
 		}
 	}
-
 }

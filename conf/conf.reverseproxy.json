@@ -7,6 +7,8 @@
         "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
+    "resourceRoot": "../../../resources/",
+    "webRoot": "../../../resources/web/"
     "defaultService" : "sb",
     "maxPayloadSizeBytes": "512k",
     "serviceDependencies": {
@@ -43,13 +45,21 @@
         "gif",
         "css",
         "js",
-        "txt"
+        "txt",
+        "map",
+        "html",
+        "json"
     ],
     "rewriteRules": {
+        "sn": {
+            "protocol": "http",
+            "host": "ec2-54-196-247-144.compute-1.amazonaws.com",
+            "port": 8989
+        },
         "sb": {
             "protocol": "http",
             "host": "localhost",
-            "port": 8080
+            "port": 8787
         },
         "google": {
             "protocol": "http",
@@ -65,6 +75,11 @@
             "protocol": "https",
             "host": "www.bankofamerica.com",
             "port": 443
+        },
+        "kms": {
+        	"protocol": "http",
+        	"host": "localhost",
+        	"port": 8788
         }
     }
 

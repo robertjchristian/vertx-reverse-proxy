@@ -22,6 +22,8 @@ public class ReverseProxyConfiguration {
 	public String defaultService;
 	public String maxPayloadSizeBytes;
 	public ServiceDependencies serviceDependencies;
+	public String resourceRoot;
+	public String webRoot;
 
 	public ReverseProxyConfiguration() {
 

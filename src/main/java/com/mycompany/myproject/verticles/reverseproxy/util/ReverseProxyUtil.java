@@ -1,6 +1,4 @@
-package com.mycompany.myproject.verticles.reverseproxy;
-
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.webRoot;
+package com.mycompany.myproject.verticles.reverseproxy.util;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -8,16 +6,12 @@ import java.util.List;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.MultiMap;
-import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.logging.Logger;
 
 import com.google.gson.Gson;
-import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 
 /**
  * Reverse proxy utilities
@@ -37,14 +31,17 @@ public class ReverseProxyUtil {
 	 * @param msg - Message returned to client
 	 */
 	public static void sendFailure(Logger log, final HttpServerRequest req, final String msg) {
+		sendFailure(log, req, 500, msg);
+	}
+
+	public static void sendFailure(Logger log, final HttpServerRequest req, final int statusCode, final String msg) {
 		log.error(msg);
 		req.response().setChunked(true);
-		req.response().setStatusCode(500);
+		req.response().setStatusCode(statusCode);
 		req.response().setStatusMessage("Internal Server Error.");
 		req.response().write(msg);
 		req.response().end();
 	}
-
 
 	public static void send200OKResponse(Logger log, final HttpServerRequest req, final Buffer response, final String contentType) {
 		req.response().putHeader("content-type", contentType);
@@ -53,23 +50,6 @@ public class ReverseProxyUtil {
 		req.response().setStatusMessage("OK");
 		req.response().write(response);
 		req.response().end();
-	}
-
-	public static void sendAuthError(Logger log, final Vertx vertx, final HttpServerRequest req, final int statusCode, final String msg) {
-		FileCacheUtil.readFile(vertx.eventBus(), log, webRoot + AUTH_ERROR_TEMPLATE_PATH, new AsyncResultHandler<byte[]>() {
-
-			@Override
-			public void handle(AsyncResult<byte[]> data) {
-				String template = new String(data.result());
-				String templateWithErrorMessage = template.replace("{{error}}", msg);
-
-				req.response().setChunked(true);
-				req.response().setStatusCode(statusCode);
-				req.response().write(templateWithErrorMessage);
-				req.response().end();
-			}
-
-		});
 	}
 
 	public static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {

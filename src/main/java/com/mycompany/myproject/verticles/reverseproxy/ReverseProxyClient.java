@@ -1,7 +1,5 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import static com.mycompany.myproject.verticles.reverseproxy.ReverseProxyVerticle.resourceRoot;
-
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,16 +18,15 @@ import org.vertx.java.core.logging.Logger;
 
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.RewriteRule;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author robertjchristian
  */
 public class ReverseProxyClient {
 
-	private final String webRoot;
 
-	ReverseProxyClient(String webRoot) {
-		this.webRoot = webRoot;
+	ReverseProxyClient() {
 	}
 
 	public void doProxy(final Vertx vertx, final HttpServerRequest req, final String messageBody, final ReverseProxyConfiguration config, final Logger log) {
@@ -40,7 +37,7 @@ public class ReverseProxyClient {
 			reqURI = new URI(req.uri());
 		}
 		catch (URISyntaxException e) {
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Bad URI: " + req.uri());
+			ReverseProxyUtil.sendFailure(log, req, 500, "Bad URI: " + req.uri());
 			return;
 		}
 
@@ -54,7 +51,7 @@ public class ReverseProxyClient {
 		localAssets.put("/css/bootstrap.min.css", "text/css");
 		for (String assetPath : localAssets.keySet()) {
 			if (reqURI.getPath().equals(assetPath)) {
-				String path = webRoot + assetPath;
+				String path = config.webRoot + assetPath;
 				// TODO read async, and from cache...
 				Buffer b = vertx.fileSystem().readFileSync(path);
 				String contentType = localAssets.get(assetPath);
@@ -69,7 +66,7 @@ public class ReverseProxyClient {
 		String uriPath = reqURI.getPath().toString();
 		String[] path = uriPath.split("/");
 		if (path.length < 2) {
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Expected first node in URI path to be rewrite token.");
+			ReverseProxyUtil.sendFailure(log, req, 500, "Expected first node in URI path to be rewrite token.");
 			return;
 		}
 		String rewriteToken = path[1];
@@ -80,7 +77,7 @@ public class ReverseProxyClient {
 		 */
 		RewriteRule r = config.rewriteRules.get(rewriteToken);
 		if (r == null) {
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Couldn't find rewrite rule for '" + rewriteToken + "'");
+			ReverseProxyUtil.sendFailure(log, req, 500, "Couldn't find rewrite rule for '" + rewriteToken + "'");
 			return;
 		}
 
@@ -102,7 +99,7 @@ public class ReverseProxyClient {
 			targetURL = new URL(spec);
 		}
 		catch (MalformedURLException e) {
-			ReverseProxyUtil.sendAuthError(log, vertx, req, 500, "Failed to construct URL from " + spec);
+			ReverseProxyUtil.sendFailure(log, req, 500, "Failed to construct URL from " + spec);
 			return;
 		}
 
@@ -125,7 +122,7 @@ public class ReverseProxyClient {
 			log.debug("Creating HTTPS client");
 			client.setSSL(true);
 			client.setTrustStorePath(ReverseProxyUtil.isNullOrEmptyAfterTrim(r.getTrustStorePath())
-					? resourceRoot + config.ssl.trustStorePath
+					? config.resourceRoot + config.ssl.trustStorePath
 					: r.getTrustStorePath());
 			client.setTrustStorePassword(ReverseProxyUtil.isNullOrEmptyAfterTrim(r.getTrustStorePassword())
 					? config.ssl.trustStorePassword

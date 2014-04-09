@@ -13,8 +13,13 @@ import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
+import com.mycompany.myproject.verticles.reverseproxy.model.ApplicationUser;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
+import com.mycompany.myproject.verticles.reverseproxy.util.MultipartUtil;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 /**
  * @author hpark
@@ -37,8 +42,12 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 
 	private final boolean authPosted;
 
+	private final String unsignedDocument;
+
+	private final String signedDocument;
+
 	public RoleResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
-			boolean authPosted) {
+			boolean authPosted, String unsignedDocument, String signedDocument) {
 		this.req = req;
 		this.vertx = vertx;
 		this.config = config;
@@ -46,10 +55,14 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
+		this.unsignedDocument = unsignedDocument;
+		this.signedDocument = signedDocument;
 	}
 
 	@Override
 	public void handle(final HttpClientResponse res) {
+
+		final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
 		res.dataHandler(new Handler<Buffer>() {
 			@Override
@@ -58,17 +71,19 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 				// role fetch successful
 				if (res.statusCode() >= 200 && res.statusCode() < 300) {
 					log.debug("Successfully fetched role. Getting manifest from ACL");
-					HttpClient signClient = vertx.createHttpClient()
+					HttpClient manifestClient = vertx.createHttpClient()
 							.setHost(config.serviceDependencies.getHost("acl"))
 							.setPort(config.serviceDependencies.getPort("acl"));
-					final HttpClientRequest roleRequest = signClient.request("POST",
+					final HttpClientRequest roleRequest = manifestClient.request("POST",
 							config.serviceDependencies.getRequestPath("acl", "manifest"),
 							new ManifestResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
 
-					// TODO construct manifest request
+					String[] path = req.path().split("/");
+					String manifestRequest = MultipartUtil.constructAclRequest("", gson.fromJson(data.toString(), ApplicationUser.class).getRoles());
+					String multipartManifestRequest = MultipartUtil.constructManifestRequest("BaB03x", unsignedDocument, signedDocument, manifestRequest);
 
 					roleRequest.setChunked(true);
-					roleRequest.write("");
+					roleRequest.write(multipartManifestRequest);
 					roleRequest.end();
 
 					log.debug("Sent get manifest request from acl");
@@ -76,7 +91,7 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 				else {
 					log.debug("Failed to fetch role.");
 
-					ReverseProxyUtil.sendAuthError(log, vertx, req, res.statusCode(), data.toString("UTF-8"));
+					ReverseProxyUtil.sendFailure(log, req, res.statusCode(), data.toString());
 					return;
 				}
 			}

@@ -11,8 +11,8 @@ import java.util.Date;
 
 import org.junit.Test;
 
-import com.mycompany.myproject.verticles.reverseproxy.MultipartUtil;
-import com.mycompany.myproject.verticles.reverseproxy.ReverseProxyUtil;
+import com.mycompany.myproject.verticles.reverseproxy.util.MultipartUtil;
+import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
 
 
 public class ReverseProxyUtilTest {

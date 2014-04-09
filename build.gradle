@@ -92,6 +92,11 @@ task runMockServers(type: Test) {
 	include 'com/mycompany/myproject/test/mock/MockServerTest*'
 }
 
+task initJDK(type: Copy) {
+	from 'resources/jce'
+	into System.getenv("JAVA_HOME") + '/jre/lib/security'
+}
+
 /*
 If you're uploading stuff to Maven, Gradle needs to generate a POM.
 Please edit the details below.

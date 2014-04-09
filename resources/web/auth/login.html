@@ -3,7 +3,7 @@
 <html lang="en" id="body">
 <head>
 
-    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
   	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
@@ -35,7 +35,7 @@
 						$('html').html(data.getElementById("body"));
 					},
 					error : function(data) {
-						$('html').html(data.responseText);
+						$('#errorText').text(data.responseText);
 					},
 				});
 				
@@ -53,7 +53,8 @@
 
         <h1>SOA Proxy Login</h1>
 
-        <p>Please login</p>
+		<div id="errorText" style="color: red">
+		</div>
 
         <div class="container">
             <form role="form" class="form-horizontal" id="loginForm" method="post">

@@ -8,39 +8,51 @@ package com.mycompany.myproject.verticles.reverseproxy.configuration;
  */
 public class RewriteRule {
 
-    public RewriteRule(String protocol, String host, Integer port) {
-        this(protocol, host, port, null, null);
-    }
+	public RewriteRule(String protocol, String host, Integer port) {
+		this(protocol, host, null, port);
+	}
 
-    public RewriteRule(String protocol, String host, Integer port, String trustStorePath, String trustStorePassword) {
-        this.protocol = protocol;
-        this.host = host;
-        this.port = port;
-    }
+	public RewriteRule(String protocol, String host, String name, Integer port) {
+		this(protocol, host, name, port, null, null);
+	}
 
-    private String protocol;
-    private String host;
-    private Integer port;
-    private String trustStorePath;
-    private String trustStorePassword;
+	public RewriteRule(String protocol, String host, String name, Integer port, String trustStorePath, String trustStorePassword) {
+		this.protocol = protocol;
+		this.host = host;
+		this.port = port;
+		this.name = name;
+		this.trustStorePath = trustStorePath;
+		this.trustStorePassword = trustStorePassword;
+	}
 
-    public String getProtocol() {
-        return null == protocol ? "http" : protocol;
-    }
+	private String name;
+	private String protocol;
+	private String host;
+	private Integer port;
+	private String trustStorePath;
+	private String trustStorePassword;
 
-    public String getHost() {
-        return host;
-    }
+	public String getProtocol() {
+		return null == protocol ? "http" : protocol;
+	}
 
-    public Integer getPort() {
-        return null == port ? ("http".equals(protocol) ? 80 : 443) : port;
-    }
+	public String getHost() {
+		return host;
+	}
 
-    public String getTrustStorePath() {
-        return trustStorePath;
-    }
+	public String getName() {
+		return name;
+	}
 
-    public String getTrustStorePassword() {
-        return trustStorePassword;
-    }
+	public Integer getPort() {
+		return null == port ? ("http".equals(protocol) ? 80 : 443) : port;
+	}
+
+	public String getTrustStorePath() {
+		return trustStorePath;
+	}
+
+	public String getTrustStorePassword() {
+		return trustStorePassword;
+	}
 }
