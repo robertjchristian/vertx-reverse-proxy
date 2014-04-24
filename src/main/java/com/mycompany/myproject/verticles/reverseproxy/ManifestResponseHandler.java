@@ -1,8 +1,11 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
 
+import java.util.concurrent.ConcurrentMap;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -16,7 +19,6 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.SessionToken;
 import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
@@ -29,18 +31,16 @@ public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 	private static final Logger log = LoggerFactory.getLogger(ManifestResponseHandler.class);
 	private final HttpServerRequest req;
 	private final Vertx vertx;
-	private final ReverseProxyConfiguration config;
-	private final SecretKey key;
+	private final ConcurrentMap<String, byte[]> sharedCacheMap;
 	private final String payload;
 	private final SessionToken sessionToken;
 	private final boolean authPosted;
 
-	public ManifestResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload,
-			SessionToken sessionToken, boolean authPosted) {
+	public ManifestResponseHandler(Vertx vertx, HttpServerRequest req, ConcurrentMap<String, byte[]> sharedCacheMap, String payload, SessionToken sessionToken,
+			boolean authPosted) {
 		this.req = req;
 		this.vertx = vertx;
-		this.config = config;
-		this.key = key;
+		this.sharedCacheMap = sharedCacheMap;
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
@@ -48,6 +48,10 @@ public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 
 	@Override
 	public void handle(final HttpClientResponse res) {
+
+		final ReverseProxyConfiguration config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class,
+				sharedCacheMap.get(ReverseProxyVerticle.configAfterDeployment()));
+		final SecretKey key = new SecretKeySpec(sharedCacheMap.get(ReverseProxyVerticle.getResourceRoot() + config.ssl.symKeyPath), "AES");
 
 		res.dataHandler(new Handler<Buffer>() {
 			@Override
@@ -76,7 +80,7 @@ public class ManifestResponseHandler implements Handler<HttpClientResponse> {
 
 					// if manifest request was successful, do redirect
 					if (authPosted) {
-						FileCacheUtil.readFile(vertx.eventBus(), log, config.webRoot + "redirectConfirmation.html", new RedirectHandler(vertx, req));
+						ReverseProxyUtil.sendRedirect(log, req, sharedCacheMap, ReverseProxyVerticle.getWebRoot() + "redirectConfirmation.html");
 					}
 					else {
 						// do reverse proxy

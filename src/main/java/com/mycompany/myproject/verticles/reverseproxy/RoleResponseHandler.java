@@ -1,6 +1,6 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import javax.crypto.SecretKey;
+import java.util.concurrent.ConcurrentMap;
 
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -32,9 +32,7 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 
 	private final Vertx vertx;
 
-	private final ReverseProxyConfiguration config;
-
-	private final SecretKey key;
+	private final ConcurrentMap<String, byte[]> sharedCacheMap;
 
 	private final String payload;
 
@@ -46,12 +44,11 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 
 	private final String signedDocument;
 
-	public RoleResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+	public RoleResponseHandler(Vertx vertx, HttpServerRequest req, ConcurrentMap<String, byte[]> sharedCacheMap, String payload, SessionToken sessionToken,
 			boolean authPosted, String unsignedDocument, String signedDocument) {
 		this.req = req;
 		this.vertx = vertx;
-		this.config = config;
-		this.key = key;
+		this.sharedCacheMap = sharedCacheMap;
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
@@ -62,6 +59,8 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 	@Override
 	public void handle(final HttpClientResponse res) {
 
+		final ReverseProxyConfiguration config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class,
+				sharedCacheMap.get(ReverseProxyVerticle.configAfterDeployment()));
 		final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
 		res.dataHandler(new Handler<Buffer>() {
@@ -76,9 +75,8 @@ public class RoleResponseHandler implements Handler<HttpClientResponse> {
 							.setPort(config.serviceDependencies.getPort("acl"));
 					final HttpClientRequest roleRequest = manifestClient.request("POST",
 							config.serviceDependencies.getRequestPath("acl", "manifest"),
-							new ManifestResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted));
+							new ManifestResponseHandler(vertx, req, sharedCacheMap, payload, sessionToken, authPosted));
 
-					String[] path = req.path().split("/");
 					String manifestRequest = MultipartUtil.constructAclRequest("", gson.fromJson(data.toString(), ApplicationUser.class).getRoles());
 					String multipartManifestRequest = MultipartUtil.constructManifestRequest("BaB03x", unsignedDocument, signedDocument, manifestRequest);
 

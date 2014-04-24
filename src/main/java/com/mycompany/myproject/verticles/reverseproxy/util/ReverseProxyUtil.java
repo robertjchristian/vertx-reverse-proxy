@@ -3,12 +3,14 @@ package com.mycompany.myproject.verticles.reverseproxy.util;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.vertx.java.core.MultiMap;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
+import org.vertx.java.core.json.impl.Base64;
 import org.vertx.java.core.logging.Logger;
 
 import com.google.gson.Gson;
@@ -50,6 +52,23 @@ public class ReverseProxyUtil {
 		req.response().setStatusMessage("OK");
 		req.response().write(response);
 		req.response().end();
+	}
+
+	public static void sendRedirect(Logger log, final HttpServerRequest req, ConcurrentMap<String, byte[]> sharedCacheMap, String path) {
+		try {
+			// preserve original request uri
+			req.response()
+					.headers()
+					.add("Set-Cookie", String.format("original-request=%s", Base64.encodeBytes(req.absoluteURI().toString().getBytes("UTF-8"))));
+			req.response().setChunked(true);
+			req.response().setStatusCode(200);
+			req.response().write(new String(sharedCacheMap.get(path)));
+			req.response().end();
+		}
+		catch (Exception e) {
+			ReverseProxyUtil.sendFailure(log, req, 500, e.getMessage());
+			return;
+		}
 	}
 
 	public static <T> T getConfig(final Class<T> clazz, final byte[] fileContents) {

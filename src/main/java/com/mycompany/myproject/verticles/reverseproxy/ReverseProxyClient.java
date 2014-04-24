@@ -51,7 +51,7 @@ public class ReverseProxyClient {
 		localAssets.put("/css/bootstrap.min.css", "text/css");
 		for (String assetPath : localAssets.keySet()) {
 			if (reqURI.getPath().equals(assetPath)) {
-				String path = config.webRoot + assetPath;
+				String path = ReverseProxyVerticle.getWebRoot() + assetPath;
 				// TODO read async, and from cache...
 				Buffer b = vertx.fileSystem().readFileSync(path);
 				String contentType = localAssets.get(assetPath);
@@ -121,9 +121,8 @@ public class ReverseProxyClient {
 		if (r.getProtocol().equalsIgnoreCase("https")) {
 			log.debug("Creating HTTPS client");
 			client.setSSL(true);
-			client.setTrustStorePath(ReverseProxyUtil.isNullOrEmptyAfterTrim(r.getTrustStorePath())
-					? config.resourceRoot + config.ssl.trustStorePath
-					: r.getTrustStorePath());
+			client.setTrustStorePath(ReverseProxyUtil.isNullOrEmptyAfterTrim(r.getTrustStorePath()) ? ReverseProxyVerticle.getResourceRoot()
+					+ config.ssl.trustStorePath : r.getTrustStorePath());
 			client.setTrustStorePassword(ReverseProxyUtil.isNullOrEmptyAfterTrim(r.getTrustStorePassword())
 					? config.ssl.trustStorePassword
 					: r.getTrustStorePassword());
