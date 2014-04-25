@@ -7,8 +7,6 @@
         "symKeyPath": "ssl/server/symKey.key",
         "proxyHttpsPort": 8989
     },
-    "resourceRoot": "../../../resources/",
-    "webRoot": "../../../resources/web/",
     "defaultService" : "sb",
     "maxPayloadSizeBytes": "512k",
     "serviceDependencies": {

@@ -1,19 +1,16 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
 import org.vertx.java.platform.Verticle;
 
-import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.bootstrap.BootstrapVerticle;
 import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.util.ReverseProxyUtil;
@@ -34,27 +31,24 @@ public class ReverseProxyVerticle extends Verticle {
 	/**
 	 * Configuration path
 	 */
-	public static final String CONFIG_PATH = "../../../conf/conf.reverseproxy.json";
+	public static final String CONFIG_PATH = "conf/conf.reverseproxy.json";
 
 	/**
 	 * Configuration parsed and hydrated
 	 */
 	private ReverseProxyConfiguration config;
 
-	private SecretKey key;
+	private ConcurrentMap<String, byte[]> sharedCacheMap;
 
-	//
-	//
-	// TODO A) Isolate configuration loading and updating to a utility / base class
-	// TODO B) Ensure that the update response handler and http server are run by
-	// TODO    the same thread. (thereby avoiding a config change in the middle of
-	// TODO    processing an HTTP request)
-	// TODO C) Reuse dynamic vertical config updating for other verticles
-	//
-	//
+	private static String resourceRoot;
+	private static String webRoot;
 
-	public ReverseProxyConfiguration getConfig() {
-		return config;
+	public static String getResourceRoot() {
+		return resourceRoot;
+	}
+
+	public static String getWebRoot() {
+		return webRoot;
 	}
 
 	/**
@@ -62,49 +56,13 @@ public class ReverseProxyVerticle extends Verticle {
 	 */
 	public void start() {
 
-		FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
-			@Override
-			public void handle(AsyncResult<byte[]> event) {
-				log.debug("Updating configuration based on change to [" + CONFIG_PATH + "].");
+		resourceRoot = container.config().getString("resourceRoot");
+		webRoot = container.config().getString("webRoot");
 
-				// set configuration
-				config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class, event.result());
-
-				// register update listener     (TODO isolate this code for readability)
-				String channel = FileCacheVerticle.FILE_CACHE_CHANNEL + CONFIG_PATH;
-				vertx.eventBus().registerHandler(channel, new Handler<Message<Boolean>>() {
-					@Override
-					public void handle(Message<Boolean> message) {
-						// update config
-						log.info("Configuration file " + CONFIG_PATH + " has been updated in cache.  Re-fetching.");
-
-						FileCacheUtil.readFile(vertx.eventBus(), log, CONFIG_PATH, new AsyncResultHandler<byte[]>() {
-							@Override
-							public void handle(AsyncResult<byte[]> event) {
-
-								// set configuration
-								config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class, event.result());
-
-							}
-						});
-					}
-				});
-
-				// bootstrap key
-				// TODO dynamic loading of key
-				// TODO expired key handling
-				FileCacheUtil.readFile(vertx.eventBus(), log, config.resourceRoot + config.ssl.symKeyPath, new AsyncResultHandler<byte[]>() {
-
-					@Override
-					public void handle(AsyncResult<byte[]> event) {
-						key = new SecretKeySpec(event.result(), "AES");
-
-						// start verticle
-						doStart();
-					}
-				});
-			}
-		});
+		sharedCacheMap = vertx.sharedData().getMap(FileCacheVerticle.FILE_CACHE_MAP);
+		config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class, sharedCacheMap.get(resourceRoot + CONFIG_PATH));
+		// start verticle
+		doStart();
 	}
 
 	// called after initial filecache
@@ -118,7 +76,7 @@ public class ReverseProxyVerticle extends Verticle {
 		/**
 		 * Handle requests for authentication
 		 */
-		routeMatcher.all("/auth", new AuthRequestHandler(vertx, config, key));
+		routeMatcher.all("/auth", new AuthRequestHandler(vertx));
 
 		/**
 		 * Handle requests for assets
@@ -126,22 +84,39 @@ public class ReverseProxyVerticle extends Verticle {
 		for (String asset : config.assets) {
 			String pattern = "/.*\\." + asset;
 			log.debug("Adding asset " + pattern);
-			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, config, false, key));
+			routeMatcher.all(pattern, new ReverseProxyHandler(vertx, false));
 		}
 
 		/**
 		 * Handle all other requests
 		 */
-		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, config, true, key));
+		routeMatcher.all("/.*", new ReverseProxyHandler(vertx, true));
 
 		final HttpServer httpsServer = vertx.createHttpServer()
 				.requestHandler(routeMatcher)
 				.setSSL(true)
-				.setKeyStorePath(config.resourceRoot + config.ssl.keyStorePath)
+				.setKeyStorePath(ReverseProxyVerticle.getResourceRoot() + config.ssl.keyStorePath)
 				.setKeyStorePassword(config.ssl.keyStorePassword);
 
 		httpsServer.listen(config.ssl.proxyHttpsPort);
 	}
 
+	public static String config() {
+		return BootstrapVerticle.getResourceRoot() + CONFIG_PATH;
+	}
 
+	public static String configAfterDeployment() {
+		return getResourceRoot() + CONFIG_PATH;
+	}
+
+	public static List<String> dependencies(ReverseProxyConfiguration config) {
+		List<String> dependencyList = new ArrayList<String>();
+
+		dependencyList.add(BootstrapVerticle.getWebRoot() + "auth/login.html");
+		dependencyList.add(BootstrapVerticle.getWebRoot() + "redirectConfirmation.html");
+
+		dependencyList.add(BootstrapVerticle.getResourceRoot() + config.ssl.symKeyPath);
+
+		return dependencyList;
+	}
 }

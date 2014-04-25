@@ -1,3 +1,4 @@
 {
-
+    "resourceRoot": "C:/liaison/g2/vertx-reserve-proxy-github/vertx-reverse-proxy/resources/",
+    "webRoot": "C:/liaison/g2/vertx-reserve-proxy-github/vertx-reverse-proxy/resources/web/"
 }

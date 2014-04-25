@@ -3,8 +3,7 @@ package com.mycompany.myproject.verticles.reverseproxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
-
-import javax.crypto.SecretKey;
+import java.util.concurrent.ConcurrentMap;
 
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -41,9 +40,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
 	private final Vertx vertx;
 
-	private final ReverseProxyConfiguration config;
-
-	private final SecretKey key;
+	private final ConcurrentMap<String, byte[]> sharedCacheMap;
 
 	private final String payload;
 
@@ -53,12 +50,11 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
 	private final String refererSid;
 
-	public AuthResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+	public AuthResponseHandler(Vertx vertx, HttpServerRequest req, ConcurrentMap<String, byte[]> sharedCacheMap, String payload, SessionToken sessionToken,
 			boolean authPosted, String refererSid) {
 		this.vertx = vertx;
-		this.config = config;
 		this.req = req;
-		this.key = key;
+		this.sharedCacheMap = sharedCacheMap;
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
@@ -67,6 +63,10 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 
 	@Override
 	public void handle(final HttpClientResponse res) {
+
+		final ReverseProxyConfiguration config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class,
+				sharedCacheMap.get(ReverseProxyVerticle.configAfterDeployment()));
+
 		res.dataHandler(new Handler<Buffer>() {
 			public void handle(Buffer data) {
 
@@ -142,7 +142,7 @@ public class AuthResponseHandler implements Handler<HttpClientResponse> {
 									.setPort(config.serviceDependencies.getPort("auth"));
 							final HttpClientRequest signRequest = signClient.request("POST",
 									config.serviceDependencies.getRequestPath("auth", "sign"),
-									new SignResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, refererSid));
+									new SignResponseHandler(vertx, req, sharedCacheMap, payload, sessionToken, authPosted, unsignedDocument, refererSid));
 
 							signRequest.setChunked(true);
 							signRequest.write(unsignedDocument);

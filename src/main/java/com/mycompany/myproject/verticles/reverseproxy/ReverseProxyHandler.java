@@ -1,9 +1,11 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
 import java.net.URI;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -18,7 +20,7 @@ import org.vertx.java.core.logging.impl.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mycompany.myproject.verticles.filecache.FileCacheUtil;
+import com.mycompany.myproject.verticles.filecache.FileCacheVerticle;
 import com.mycompany.myproject.verticles.reverseproxy.configuration.ReverseProxyConfiguration;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthRequest;
 import com.mycompany.myproject.verticles.reverseproxy.model.AuthenticateRequest;
@@ -37,10 +39,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 	 * Log
 	 */
 	private static final Logger log = LoggerFactory.getLogger(ReverseProxyHandler.class);
-	/**
-	 * Configuration
-	 */
-	private final ReverseProxyConfiguration config;
+
 	/**
 	 * Vert.x
 	 */
@@ -49,23 +48,22 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 	 * Requires Auth/ACL
 	 */
 	private final boolean requiresAuthAndACL;
-	/**
-	 *
-	 */
-	private final SecretKey key;
 
 	/**
 	 * Constructor
 	 */
-	public ReverseProxyHandler(Vertx vertx, ReverseProxyConfiguration config, boolean requiresAuthAndACL, SecretKey key) {
+	public ReverseProxyHandler(Vertx vertx, boolean requiresAuthAndACL) {
 		this.vertx = vertx;
-		this.config = config;
 		this.requiresAuthAndACL = requiresAuthAndACL;
-		this.key = key;
 	}
 
 	@Override
 	public void handle(final HttpServerRequest req) {
+
+		final ConcurrentMap<String, byte[]> sharedCacheMap = vertx.sharedData().getMap(FileCacheVerticle.FILE_CACHE_MAP);
+		final ReverseProxyConfiguration config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class,
+				sharedCacheMap.get(ReverseProxyVerticle.configAfterDeployment()));
+		final SecretKey key = new SecretKeySpec(sharedCacheMap.get(ReverseProxyVerticle.getResourceRoot() + config.ssl.symKeyPath), "AES");
 
 		/**
 		 * PARSE REQUEST
@@ -73,12 +71,6 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 		String sessionRequirementText = requiresAuthAndACL ? "[Session required]" : "[Session not required]";
 		log.info("Handling incoming proxy request [" + req.method() + " " + req.uri() + " " + sessionRequirementText);
 		log.debug("Headers:  " + ReverseProxyUtil.getCookieHeadersAsJSON(req.headers()));
-
-		if (config == null) {
-			log.error("No config found.");
-			ReverseProxyUtil.sendFailure(log, req, 500, "No config found.");
-			return;
-		}
 
 		// get rewrite rules as POJO
 		if (config.rewriteRules == null) {
@@ -179,7 +171,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 								.setPort(config.serviceDependencies.getPort("auth"));
 						final HttpClientRequest authReq = authClient.request("POST",
 								config.serviceDependencies.getRequestPath("auth", "auth"),
-								new AuthResponseHandler(vertx, config, req, key, payloadBuffer.toString(), sessionToken, false, refererSid));
+								new AuthResponseHandler(vertx, req, sharedCacheMap, payloadBuffer.toString(), sessionToken, false, refererSid));
 
 						authReq.setChunked(true);
 						authReq.write(authRequestStr);
@@ -189,7 +181,7 @@ public class ReverseProxyHandler implements Handler<HttpServerRequest> {
 						log.info("session token and basic auth header not found. redirecting to login page");
 
 						// return login page
-						FileCacheUtil.readFile(vertx.eventBus(), log, config.webRoot + "auth/login.html", new RedirectHandler(vertx, req));
+						ReverseProxyUtil.sendRedirect(log, req, sharedCacheMap, ReverseProxyVerticle.getWebRoot() + "auth/login.html");
 						return;
 					}
 				}

@@ -1,6 +1,6 @@
 package com.mycompany.myproject.verticles.reverseproxy;
 
-import javax.crypto.SecretKey;
+import java.util.concurrent.ConcurrentMap;
 
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -35,9 +35,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
 	private final Vertx vertx;
 
-	private final ReverseProxyConfiguration config;
-
-	private final SecretKey key;
+	private final ConcurrentMap<String, byte[]> sharedCacheMap;
 
 	private final String payload;
 
@@ -49,12 +47,11 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
 	private final String refererSid;
 
-	public SignResponseHandler(Vertx vertx, ReverseProxyConfiguration config, HttpServerRequest req, SecretKey key, String payload, SessionToken sessionToken,
+	public SignResponseHandler(Vertx vertx, HttpServerRequest req, ConcurrentMap<String, byte[]> sharedCacheMap, String payload, SessionToken sessionToken,
 			boolean authPosted, String unsignedDocument, String refererSid) {
 		this.vertx = vertx;
-		this.config = config;
 		this.req = req;
-		this.key = key;
+		this.sharedCacheMap = sharedCacheMap;
 		this.payload = payload;
 		this.sessionToken = sessionToken;
 		this.authPosted = authPosted;
@@ -67,6 +64,8 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 
 		log.debug("Received response from auth server for sign request");
 
+		final ReverseProxyConfiguration config = ReverseProxyUtil.getConfig(ReverseProxyConfiguration.class,
+				sharedCacheMap.get(ReverseProxyVerticle.configAfterDeployment()));
 		final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ssZ").create();
 
 		// payload signing successful
@@ -83,7 +82,7 @@ public class SignResponseHandler implements Handler<HttpClientResponse> {
 							.setPort(config.serviceDependencies.getPort("roles"));
 					final HttpClientRequest roleRequest = signClient.request("POST",
 							config.serviceDependencies.getRequestPath("roles", "roles"),
-							new RoleResponseHandler(vertx, config, req, key, payload, sessionToken, authPosted, unsignedDocument, data.toString()));
+							new RoleResponseHandler(vertx, req, sharedCacheMap, payload, sessionToken, authPosted, unsignedDocument, data.toString()));
 
 					String sid = ReverseProxyUtil.parseTokenFromQueryString(req.absoluteURI(), ReverseProxyConstants.SID);
 					ApplicationUser appUser = new ApplicationUser(sessionToken.getUsername(), !ReverseProxyUtil.isNullOrEmptyAfterTrim(sid) ? sid : refererSid);
